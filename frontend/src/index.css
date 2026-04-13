@@ -1,0 +1,168 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles */
+@layer base {
+  body {
+    @apply bg-term-base text-term-default antialiased font-mono;
+  }
+
+  h1 {
+    @apply text-3xl font-bold text-term-bright;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold text-term-bright;
+  }
+
+  h3 {
+    @apply text-xl font-medium text-term-default;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0d1117;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 0;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #6e7681;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  .btn {
+    @apply px-4 py-2 font-mono text-sm transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-offset-term-base disabled:opacity-40 disabled:cursor-not-allowed border;
+    border-radius: 2px;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-muted text-primary border-primary-dim hover:bg-primary-dim hover:text-term-bright focus:ring-primary;
+  }
+
+  .btn-secondary {
+    @apply btn bg-transparent text-term-subtle border-term-border hover:border-term-subtle hover:text-term-default focus:ring-term-border;
+  }
+
+  .btn-danger {
+    @apply btn bg-danger-muted text-danger border-danger-dim hover:bg-danger-dim hover:text-term-bright focus:ring-danger;
+  }
+
+  .btn-outline {
+    @apply btn bg-transparent border-accent text-accent hover:bg-accent-muted focus:ring-accent;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 border border-term-border bg-term-base text-term-default font-mono text-sm focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all duration-150 placeholder:text-term-muted;
+    border-radius: 2px;
+  }
+
+  .input-error {
+    @apply input border-danger focus:ring-danger focus:border-danger;
+  }
+
+  .label {
+    @apply block text-xs font-mono text-term-subtle uppercase tracking-widest mb-1;
+  }
+
+  .card {
+    @apply bg-term-surface border border-term-border p-6 font-mono;
+    border-radius: 2px;
+  }
+
+  .card-hover {
+    @apply card hover:border-term-subtle transition-colors duration-150;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 text-xs font-mono border;
+    border-radius: 2px;
+  }
+
+  .badge-primary {
+    @apply badge bg-accent-muted text-accent border-accent-dim;
+  }
+
+  .badge-green {
+    @apply badge bg-primary-muted text-primary border-primary-dim;
+  }
+
+  .badge-red {
+    @apply badge bg-danger-muted text-danger border-danger-dim;
+  }
+
+  .badge-yellow {
+    @apply badge bg-warn-muted text-warn border-warn-dim;
+  }
+
+  /* Key-value row layout */
+  .kv-row {
+    @apply grid gap-x-3 py-1.5 border-b border-term-border last:border-0;
+    grid-template-columns: 140px 1fr;
+  }
+
+  .kv-key {
+    @apply text-term-subtle text-xs uppercase tracking-widest self-center;
+  }
+
+  .kv-value {
+    @apply text-term-default text-sm font-mono self-center;
+  }
+
+  /* Terminal modal */
+  .term-modal-backdrop {
+    @apply fixed inset-0 bg-black bg-opacity-70 z-40;
+  }
+
+  .term-modal {
+    @apply relative bg-term-surface border border-term-border w-full max-w-md font-mono;
+    border-radius: 2px;
+  }
+}
+
+/* Custom utility classes */
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.15s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.2s ease-out;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Cursor blink effect */
+  .cursor-blink::after {
+    content: '▊';
+    color: #3fb950;
+    animation: cursorBlink 1s step-end infinite;
+    margin-left: 2px;
+  }
+
+  @keyframes cursorBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+}
