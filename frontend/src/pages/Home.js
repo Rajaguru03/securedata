@@ -158,19 +158,19 @@ const Home = () => {
               <TerminalCard title="field-level encryption">
                 <div className="font-mono text-xs space-y-3">
                   <div>
-                    <span className="text-term-muted">// field-level encryption</span>
+                    <span className="text-term-muted">{'// field-level encryption'}</span>
                   </div>
                   <div className="text-primary">
                     const encrypted = encrypt(sensitiveData);
                   </div>
                   <div className="mt-2">
-                    <span className="text-term-muted">// output format</span>
+                    <span className="text-term-muted">{'// output format'}</span>
                   </div>
                   <div className="text-accent break-all">
                     "iv:authTag:ciphertext"
                   </div>
                   <div className="mt-2">
-                    <span className="text-term-muted">// tamper detection</span>
+                    <span className="text-term-muted">{'// tamper detection'}</span>
                   </div>
                   <div className="text-warn">
                     GCM authentication tag validates integrity

@@ -2,25 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { cardAPI } from '../../services/api';
 import LoadingSpinner from '../Common/LoadingSpinner';
-import toast from 'react-hot-toast';
 import TerminalCard from '../Common/TerminalCard';
 import {
   HiLockClosed,
-  HiMail,
-  HiPhone,
-  HiLink,
-  HiCalendar,
-  HiDocumentText,
-  HiExclamation,
 } from 'react-icons/hi';
-
-const FIELD_ICONS = {
-  email: HiMail,
-  phone: HiPhone,
-  url: HiLink,
-  date: HiCalendar,
-  textarea: HiDocumentText,
-};
 
 const SharedCardView = () => {
   const { token } = useParams();

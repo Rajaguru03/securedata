@@ -10,23 +10,10 @@ import {
   HiPencil,
   HiShare,
   HiDownload,
-  HiMail,
-  HiPhone,
-  HiLink,
-  HiCalendar,
-  HiDocumentText,
   HiLockClosed,
   HiX,
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
-
-const FIELD_ICONS = {
-  email: HiMail,
-  phone: HiPhone,
-  url: HiLink,
-  date: HiCalendar,
-  textarea: HiDocumentText,
-};
 
 const Divider = ({ label }) => (
   <div className="flex items-center gap-2 my-4">
