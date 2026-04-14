@@ -294,25 +294,7 @@ const forgotPassword = async (req, res) => {
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
 
-    const sendEmail = require('../utils/sendEmail');
-    await sendEmail({
-      to: user.email,
-      subject: 'SecureCard — password reset',
-      html: `
-        <div style="font-family:monospace;background:#0d1117;color:#c9d1d9;padding:32px;border-radius:4px;max-width:480px;">
-          <h2 style="color:#3fb950;margin-bottom:8px;">[sc] securecard</h2>
-          <p style="color:#8b949e;margin-bottom:24px;">password reset request</p>
-          <p>click the link below to reset your password. this link expires in <strong style="color:#e6edf3;">15 minutes</strong>.</p>
-          <a href="${resetUrl}" style="display:inline-block;margin:20px 0;padding:10px 20px;background:#3fb950;color:#0d1117;text-decoration:none;border-radius:2px;font-weight:bold;">
-            reset password →
-          </a>
-          <p style="color:#6e7681;font-size:12px;">if you did not request this, ignore this email. your password will not change.</p>
-          <p style="color:#6e7681;font-size:12px;margin-top:16px;word-break:break-all;">or copy: ${resetUrl}</p>
-        </div>
-      `,
-    });
-
-    res.status(200).json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+    res.status(200).json({ success: true, resetUrl });
   } catch (error) {
     console.error('Forgot password error:', error);
     res.status(500).json({ error: 'Failed to send reset email. Please try again.' });

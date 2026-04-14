@@ -1,26 +1,39 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import TerminalCard from '../components/Common/TerminalCard';
-import { HiMail, HiArrowLeft, HiCheckCircle } from 'react-icons/hi';
+import { HiMail, HiArrowLeft, HiClipboardCopy, HiCheck, HiArrowRight } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [resetUrl, setResetUrl] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await authAPI.forgotPassword(email);
-      setSent(true);
+      const res = await authAPI.forgotPassword(email);
+      if (res.data.resetUrl) {
+        setResetUrl(res.data.resetUrl);
+      } else {
+        toast.error('email not found');
+      }
     } catch {
       toast.error('something went wrong, please try again');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(resetUrl);
+    setCopied(true);
+    toast.success('link copied!');
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -35,25 +48,50 @@ const ForgotPassword = () => {
           </Link>
           <h2 className="text-2xl font-bold text-term-bright">reset password</h2>
           <p className="mt-2 text-term-muted font-mono text-sm">
-            enter your email to receive a reset link
+            enter your registered email
           </p>
         </div>
 
         <TerminalCard title="forgot-password">
-          {sent ? (
-            <div className="text-center py-4 space-y-4">
-              <div className="flex justify-center">
-                <HiCheckCircle className="w-10 h-10 text-primary" />
+          {resetUrl ? (
+            <div className="space-y-4">
+              <div className="p-3 bg-primary-muted border border-primary-dim font-mono text-xs text-primary" style={{ borderRadius: '2px' }}>
+                + reset link generated — expires in 15 minutes
               </div>
-              <p className="font-mono text-sm text-term-default">reset link sent</p>
-              <p className="font-mono text-xs text-term-muted">
-                if <span className="text-term-default">{email}</span> is registered,
-                you'll receive an email with a reset link. check your inbox (and spam folder).
-              </p>
-              <p className="font-mono text-xs text-term-muted">link expires in 15 minutes.</p>
-              <Link to="/login" className="btn-primary w-full block text-center text-sm mt-4">
-                back to login
-              </Link>
+              <div>
+                <label className="label">your reset link</label>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={resetUrl}
+                    className="input flex-1 text-xs"
+                  />
+                  <button
+                    onClick={handleCopy}
+                    className={`px-3 py-2 border text-xs font-mono transition-colors ${
+                      copied
+                        ? 'bg-primary-dim border-primary text-term-bright'
+                        : 'bg-term-base border-term-border text-term-subtle hover:border-term-subtle'
+                    }`}
+                    style={{ borderRadius: '2px' }}
+                  >
+                    {copied ? <HiCheck className="w-4 h-4" /> : <HiClipboardCopy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate(resetUrl.replace(window.location.origin, ''))}
+                className="w-full btn-primary flex items-center justify-center space-x-2 text-sm"
+              >
+                <span>go to reset page</span>
+                <HiArrowRight className="w-4 h-4" />
+              </button>
+              <div className="text-center">
+                <Link to="/login" className="text-xs font-mono text-term-muted hover:text-primary transition-colors">
+                  back to login
+                </Link>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -79,7 +117,7 @@ const ForgotPassword = () => {
                 disabled={loading}
                 className="w-full btn-primary py-2.5"
               >
-                {loading ? 'sending...' : '→ send reset link'}
+                {loading ? 'generating...' : '→ get reset link'}
               </button>
               <div className="text-center">
                 <Link
