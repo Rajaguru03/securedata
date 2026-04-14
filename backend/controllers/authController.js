@@ -267,4 +267,91 @@ const getProfile = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, refreshAccessToken, logoutUser, getMe, updateUser, getProfile };
+/**
+ * @desc    Send password reset email
+ * @route   POST /api/auth/forgot-password
+ * @access  Public
+ */
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+    // Always return success to prevent email enumeration
+    if (!user) {
+      return res.status(200).json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const hashed = crypto.createHash('sha256').update(token).digest('hex');
+
+    await User.findByIdAndUpdate(user._id, {
+      resetPasswordToken: hashed,
+      resetPasswordExpire: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+    });
+
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
+
+    const sendEmail = require('../utils/sendEmail');
+    await sendEmail({
+      to: user.email,
+      subject: 'SecureCard — password reset',
+      html: `
+        <div style="font-family:monospace;background:#0d1117;color:#c9d1d9;padding:32px;border-radius:4px;max-width:480px;">
+          <h2 style="color:#3fb950;margin-bottom:8px;">[sc] securecard</h2>
+          <p style="color:#8b949e;margin-bottom:24px;">password reset request</p>
+          <p>click the link below to reset your password. this link expires in <strong style="color:#e6edf3;">15 minutes</strong>.</p>
+          <a href="${resetUrl}" style="display:inline-block;margin:20px 0;padding:10px 20px;background:#3fb950;color:#0d1117;text-decoration:none;border-radius:2px;font-weight:bold;">
+            reset password →
+          </a>
+          <p style="color:#6e7681;font-size:12px;">if you did not request this, ignore this email. your password will not change.</p>
+          <p style="color:#6e7681;font-size:12px;margin-top:16px;word-break:break-all;">or copy: ${resetUrl}</p>
+        </div>
+      `,
+    });
+
+    res.status(200).json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Failed to send reset email. Please try again.' });
+  }
+};
+
+/**
+ * @desc    Reset password using token
+ * @route   POST /api/auth/reset-password/:token
+ * @access  Public
+ */
+const resetPassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+    const hashed = crypto.createHash('sha256').update(req.params.token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashed,
+      resetPasswordExpire: { $gt: new Date() },
+    }).select('+resetPasswordToken +resetPasswordExpire');
+
+    if (!user) {
+      return res.status(400).json({ error: 'Reset link is invalid or has expired.' });
+    }
+
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpire = null;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Password reset successfully. You can now log in.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Failed to reset password. Please try again.' });
+  }
+};
+
+module.exports = { registerUser, loginUser, refreshAccessToken, logoutUser, getMe, updateUser, getProfile, forgotPassword, resetPassword };

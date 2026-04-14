@@ -17,6 +17,8 @@ import CardViewer from './components/CardViewer/CardViewer';
 import SharedCardView from './components/CardViewer/SharedCardView';
 import Home from './pages/Home';
 import Profile from './pages/Profile';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 // Styles
 import './index.css';
@@ -60,6 +62,8 @@ function App() {
               {/* Public routes without navbar */}
               <Route path="/login" element={<LoginForm />} />
               <Route path="/register" element={<RegisterForm />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
               <Route path="/card/shared/:token" element={<SharedCardView />} />
 
               {/* Public routes with navbar */}

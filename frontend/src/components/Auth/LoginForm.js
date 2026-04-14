@@ -115,6 +115,16 @@ const LoginForm = () => {
               </div>
             </div>
 
+            {/* Forgot password */}
+            <div className="text-right -mt-2">
+              <Link
+                to="/forgot-password"
+                className="text-xs font-mono text-term-muted hover:text-primary transition-colors"
+              >
+                forgot password?
+              </Link>
+            </div>
+
             {/* Submit */}
             <button
               type="submit"
