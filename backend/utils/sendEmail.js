@@ -1,34 +1,36 @@
-const nodemailer = require('nodemailer');
+const axios = require('axios');
 
 const sendEmail = async ({ to, subject, html }) => {
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailPass = process.env.GMAIL_PASS;
+  const apiKey = process.env.BREVO_API_KEY;
 
-  // In development without Gmail credentials — log to console instead
-  if (!gmailUser || !gmailPass || gmailUser === 'your-gmail@gmail.com') {
+  // In development without Brevo key — log reset URL to console
+  if (!apiKey || apiKey === 'your-brevo-api-key') {
     const linkMatch = html.match(/href="([^"]+reset-password[^"]+)"/);
-    console.log('\n📧 [DEV] Password reset email (not sent — no Gmail config)');
+    console.log('\n[DEV] Password reset email (not sent — no Brevo API key)');
     console.log(`To: ${to}`);
-    console.log(`Subject: ${subject}`);
     if (linkMatch) console.log(`Reset URL: ${linkMatch[1]}`);
     console.log('');
     return;
   }
 
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: gmailUser, pass: gmailPass },
-  });
-
   try {
-    await transporter.sendMail({
-      from: `"SecureCard" <${gmailUser}>`,
-      to,
-      subject,
-      html,
-    });
+    await axios.post(
+      'https://api.brevo.com/v3/smtp/email',
+      {
+        sender: { name: 'SecureCard', email: process.env.BREVO_SENDER_EMAIL || to },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      },
+      {
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
   } catch (err) {
-    console.error('Nodemailer error:', err.message, '| Gmail user:', gmailUser ? 'set' : 'missing');
+    console.error('Brevo error:', err.response?.data || err.message);
     throw err;
   }
 };
