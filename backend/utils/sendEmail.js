@@ -20,12 +20,17 @@ const sendEmail = async ({ to, subject, html }) => {
     auth: { user: gmailUser, pass: gmailPass },
   });
 
-  await transporter.sendMail({
-    from: `"SecureCard" <${gmailUser}>`,
-    to,
-    subject,
-    html,
-  });
+  try {
+    await transporter.sendMail({
+      from: `"SecureCard" <${gmailUser}>`,
+      to,
+      subject,
+      html,
+    });
+  } catch (err) {
+    console.error('Nodemailer error:', err.message, '| Gmail user:', gmailUser ? 'set' : 'missing');
+    throw err;
+  }
 };
 
 module.exports = sendEmail;
