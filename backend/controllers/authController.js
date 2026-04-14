@@ -223,4 +223,48 @@ const updateUser = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, refreshAccessToken, logoutUser, getMe, updateUser };
+/**
+ * @desc    Get user profile with card stats and shared cards
+ * @route   GET /api/auth/profile
+ * @access  Private
+ */
+const getProfile = async (req, res) => {
+  try {
+    const Datacard = require('../models/Datacard');
+    const user = await User.findById(req.user.id);
+
+    const [totalCards, sharedCards] = await Promise.all([
+      Datacard.countDocuments({ userId: req.user.id }),
+      Datacard.find({
+        userId: req.user.id,
+        shareToken: { $exists: true, $ne: null }
+      }).select('title shareToken shareExpiry viewCount lastViewedAt createdAt').sort({ createdAt: -1 })
+    ]);
+
+    const totalViews = sharedCards.reduce((sum, c) => sum + (c.viewCount || 0), 0);
+    const activeShared = sharedCards.filter(c => !c.shareExpiry || new Date(c.shareExpiry) > new Date());
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: { id: user._id, name: user.name, email: user.email, createdAt: user.createdAt },
+        stats: { totalCards, totalShared: sharedCards.length, activeShared: activeShared.length, totalViews },
+        sharedCards: sharedCards.map(c => ({
+          id: c._id,
+          title: c.title,
+          shareToken: c.shareToken,
+          shareExpiry: c.shareExpiry,
+          viewCount: c.viewCount,
+          lastViewedAt: c.lastViewedAt,
+          createdAt: c.createdAt,
+          isExpired: c.shareExpiry ? new Date() > new Date(c.shareExpiry) : false,
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ error: 'Failed to retrieve profile' });
+  }
+};
+
+module.exports = { registerUser, loginUser, refreshAccessToken, logoutUser, getMe, updateUser, getProfile };

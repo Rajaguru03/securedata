@@ -6,7 +6,8 @@ const {
   refreshAccessToken,
   logoutUser,
   getMe,
-  updateUser
+  updateUser,
+  getProfile
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const { registerValidation, loginValidation, updateUserValidation } = require('../middleware/validator');
@@ -20,6 +21,7 @@ router.post('/refresh', refreshAccessToken);
 // Protected routes
 router.post('/logout', protect, logoutUser);
 router.get('/me', protect, getMe);
+router.get('/profile', protect, getProfile);
 router.put('/update', protect, updateUserValidation, updateUser);
 
 module.exports = router;

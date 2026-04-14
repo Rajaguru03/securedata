@@ -57,6 +57,13 @@ const Navbar = () => {
                         <p className="text-xs font-mono text-term-default">{user?.name}</p>
                         <p className="text-xs font-mono text-term-muted">{user?.email}</p>
                       </div>
+                      <Link
+                        to="/profile"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center w-full px-4 py-2 text-xs font-mono text-term-subtle hover:bg-term-base hover:text-primary transition-colors"
+                      >
+                        ~/profile
+                      </Link>
                       <button
                         onClick={handleLogout}
                         className="flex items-center w-full px-4 py-2 text-xs font-mono text-danger hover:bg-danger-muted transition-colors"
@@ -113,6 +120,13 @@ const Navbar = () => {
                   className="block py-2 text-sm font-mono text-term-subtle hover:text-primary transition-colors"
                 >
                   ~/dashboard
+                </Link>
+                <Link
+                  to="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 text-sm font-mono text-term-subtle hover:text-primary transition-colors"
+                >
+                  ~/profile
                 </Link>
                 <button
                   onClick={handleLogout}

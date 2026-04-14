@@ -16,6 +16,7 @@ import CardEditor from './components/CardEditor/CardEditor';
 import CardViewer from './components/CardViewer/CardViewer';
 import SharedCardView from './components/CardViewer/SharedCardView';
 import Home from './pages/Home';
+import Profile from './pages/Profile';
 
 // Styles
 import './index.css';
@@ -106,6 +107,15 @@ function App() {
                   <ProtectedRoute>
                     <Navbar />
                     <CardEditor />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Navbar />
+                    <Profile />
                   </ProtectedRoute>
                 }
               />
