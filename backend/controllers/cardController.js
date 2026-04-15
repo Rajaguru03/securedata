@@ -617,22 +617,22 @@ const exportCard = async (req, res) => {
     doc.pipe(res);
 
     // ── Header ────────────────────────────────────────────────────────────────
-    doc.fontSize(9).fillColor('#8b949e').font('Helvetica')
+    doc.fontSize(9).fillColor('#6b7280').font('Helvetica')
       .text('[sc] securecard', { align: 'right' });
     doc.moveDown(0.5);
 
-    doc.fontSize(22).fillColor('#e6edf3').font('Helvetica-Bold')
+    doc.fontSize(22).fillColor('#111827').font('Helvetica-Bold')
       .text(datacard.title);
     doc.moveDown(0.3);
 
     if (datacard.description) {
-      doc.fontSize(11).fillColor('#8b949e').font('Helvetica')
+      doc.fontSize(11).fillColor('#4b5563').font('Helvetica')
         .text(datacard.description);
       doc.moveDown(0.5);
     }
 
     // Divider
-    doc.moveTo(60, doc.y).lineTo(535, doc.y).strokeColor('#30363d').lineWidth(1).stroke();
+    doc.moveTo(60, doc.y).lineTo(535, doc.y).strokeColor('#d1d5db').lineWidth(1).stroke();
     doc.moveDown(0.8);
 
     // ── Fields ────────────────────────────────────────────────────────────────
@@ -641,14 +641,14 @@ const exportCard = async (req, res) => {
       const valueX = 210;
       const y = doc.y;
 
-      doc.fontSize(9).fillColor('#8b949e').font('Helvetica-Bold')
+      doc.fontSize(9).fillColor('#6b7280').font('Helvetica-Bold')
         .text(field.label.toUpperCase(), labelX, y, { width: 140, continued: false });
 
       const displayValue = field.encrypted
         ? `[encrypted] ${field.value}`
         : (field.value || '—');
 
-      doc.fontSize(10).fillColor('#e6edf3').font('Helvetica')
+      doc.fontSize(10).fillColor('#111827').font('Helvetica')
         .text(displayValue, valueX, y, { width: 325 });
 
       doc.moveDown(0.6);
@@ -657,25 +657,25 @@ const exportCard = async (req, res) => {
     // ── Tags ──────────────────────────────────────────────────────────────────
     if (datacard.tags?.length > 0) {
       doc.moveDown(0.3);
-      doc.moveTo(60, doc.y).lineTo(535, doc.y).strokeColor('#30363d').lineWidth(1).stroke();
+      doc.moveTo(60, doc.y).lineTo(535, doc.y).strokeColor('#d1d5db').lineWidth(1).stroke();
       doc.moveDown(0.6);
-      doc.fontSize(9).fillColor('#8b949e').font('Helvetica-Bold').text('TAGS');
+      doc.fontSize(9).fillColor('#6b7280').font('Helvetica-Bold').text('TAGS');
       doc.moveDown(0.3);
-      doc.fontSize(10).fillColor('#58a6ff').font('Helvetica')
+      doc.fontSize(10).fillColor('#2563eb').font('Helvetica')
         .text(datacard.tags.map(t => `#${t}`).join('  '));
       doc.moveDown(0.5);
     }
 
     // ── Metadata ──────────────────────────────────────────────────────────────
     doc.moveDown(0.3);
-    doc.moveTo(60, doc.y).lineTo(535, doc.y).strokeColor('#30363d').lineWidth(1).stroke();
+    doc.moveTo(60, doc.y).lineTo(535, doc.y).strokeColor('#d1d5db').lineWidth(1).stroke();
     doc.moveDown(0.6);
-    doc.fontSize(9).fillColor('#8b949e').font('Helvetica')
-      .text(`Created: ${new Date(datacard.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}   |   Visibility: ${datacard.visibility}   |   Template: ${datacard.template}`);
+    doc.fontSize(9).fillColor('#6b7280').font('Helvetica')
+      .text(`Created: ${new Date(datacard.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}   |   Visibility: ${datacard.visibility}`);
     doc.moveDown(0.5);
 
     // ── Security notice ───────────────────────────────────────────────────────
-    doc.fontSize(8).fillColor('#484f58')
+    doc.fontSize(8).fillColor('#9ca3af')
       .text('This document is password-protected. Field values marked [encrypted] were decrypted for this export. Handle with care.');
 
     doc.end();

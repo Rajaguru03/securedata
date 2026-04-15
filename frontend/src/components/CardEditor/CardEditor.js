@@ -15,7 +15,6 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
-const TEMPLATES = ['default', 'professional', 'minimal', 'creative'];
 const FIELD_TYPES = ['text', 'email', 'phone', 'date', 'url', 'textarea'];
 
 const emptyField = {
@@ -35,7 +34,6 @@ const CardEditor = () => {
     title: '',
     description: '',
     fields: [{ ...emptyField }],
-    template: 'default',
     visibility: 'private',
     tags: [],
   });
@@ -53,7 +51,6 @@ const CardEditor = () => {
             title: card.title || '',
             description: card.description || '',
             fields: card.fields?.length > 0 ? card.fields : [{ ...emptyField }],
-            template: card.template || 'default',
             visibility: card.visibility || 'private',
             tags: card.tags || [],
           });
@@ -129,7 +126,6 @@ const CardEditor = () => {
       title: generated.title || formData.title,
       description: generated.description || formData.description,
       fields: generated.fields?.length > 0 ? generated.fields : formData.fields,
-      template: generated.template || formData.template,
       tags: generated.tags || formData.tags,
     });
     setShowGenerateModal(false);
@@ -249,53 +245,36 @@ const CardEditor = () => {
               />
             </div>
 
-            {/* Template & Visibility */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="label">Template</label>
-                <select
-                  value={formData.template}
-                  onChange={(e) => setFormData({ ...formData, template: e.target.value })}
-                  className="input"
+            {/* Visibility */}
+            <div>
+              <label className="label">Visibility</label>
+              <div className="flex space-x-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, visibility: 'private' })}
+                  className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 border transition-colors font-mono text-sm ${
+                    formData.visibility === 'private'
+                      ? 'border-accent bg-accent-muted text-accent'
+                      : 'border-term-border text-term-muted hover:border-term-subtle'
+                  }`}
+                  style={{ borderRadius: '2px' }}
                 >
-                  {TEMPLATES.map((t) => (
-                    <option key={t} value={t}>
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="label">Visibility</label>
-                <div className="flex space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, visibility: 'private' })}
-                    className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 border transition-colors font-mono text-sm ${
-                      formData.visibility === 'private'
-                        ? 'border-accent bg-accent-muted text-accent'
-                        : 'border-term-border text-term-muted hover:border-term-subtle'
-                    }`}
-                    style={{ borderRadius: '2px' }}
-                  >
-                    <HiLockClosed className="w-4 h-4" />
-                    <span>private</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, visibility: 'public' })}
-                    className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 border transition-colors font-mono text-sm ${
-                      formData.visibility === 'public'
-                        ? 'border-primary bg-primary-muted text-primary'
-                        : 'border-term-border text-term-muted hover:border-term-subtle'
-                    }`}
-                    style={{ borderRadius: '2px' }}
-                  >
-                    <HiGlobe className="w-4 h-4" />
-                    <span>public</span>
-                  </button>
-                </div>
+                  <HiLockClosed className="w-4 h-4" />
+                  <span>private</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, visibility: 'public' })}
+                  className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 border transition-colors font-mono text-sm ${
+                    formData.visibility === 'public'
+                      ? 'border-primary bg-primary-muted text-primary'
+                      : 'border-term-border text-term-muted hover:border-term-subtle'
+                  }`}
+                  style={{ borderRadius: '2px' }}
+                >
+                  <HiGlobe className="w-4 h-4" />
+                  <span>public</span>
+                </button>
               </div>
             </div>
 

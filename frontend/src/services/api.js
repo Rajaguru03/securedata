@@ -68,7 +68,7 @@ export const cardAPI = {
 
 // LLM API calls
 export const llmAPI = {
-  generate: (data) => api.post('/generate', data),
+  generate: (data) => api.post('/generate', data, { timeout: 120000 }), // 2 min — LLM can be slow
   getTemplates: () => api.get('/generate/templates'),
 };
 

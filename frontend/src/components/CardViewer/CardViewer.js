@@ -12,6 +12,8 @@ import {
   HiDownload,
   HiLockClosed,
   HiX,
+  HiEye,
+  HiEyeOff,
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
@@ -29,6 +31,7 @@ const CardViewer = () => {
   const { fetchCard, currentCard, loading, error } = useCards();
   const [showShareModal, setShowShareModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [revealedFields, setRevealedFields] = useState({});
   const [exportPassword, setExportPassword] = useState('');
   const [exportLoading, setExportLoading] = useState(false);
   const [protectWithPassword, setProtectWithPassword] = useState(false);
@@ -144,7 +147,29 @@ const CardViewer = () => {
                   {field.encrypted ? (
                     <span className="flex items-center gap-2">
                       <span className="text-xs text-term-muted">[encrypted]</span>
-                      <span className="text-warn">░░░░░░░░</span>
+                      {revealedFields[index] ? (
+                        <>
+                          <span className="text-term-default">{field.value}</span>
+                          <button
+                            onClick={() => setRevealedFields(prev => ({ ...prev, [index]: false }))}
+                            className="text-term-muted hover:text-term-default transition-colors"
+                            title="hide"
+                          >
+                            <HiEyeOff className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-warn">░░░░░░░░</span>
+                          <button
+                            onClick={() => setRevealedFields(prev => ({ ...prev, [index]: true }))}
+                            className="text-term-muted hover:text-term-default transition-colors"
+                            title="reveal"
+                          >
+                            <HiEye className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
                     </span>
                   ) : field.type === 'url' && field.value ? (
                     <a
@@ -192,10 +217,6 @@ const CardViewer = () => {
           {/* Meta info */}
           <Divider label="metadata" />
           <div>
-            <div className="kv-row">
-              <span className="kv-key">template</span>
-              <span className="kv-value">{currentCard.template || 'default'}</span>
-            </div>
             <div className="kv-row">
               <span className="kv-key">created</span>
               <span className="kv-value">{new Date(currentCard.createdAt).toLocaleDateString()}</span>
