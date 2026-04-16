@@ -10,7 +10,7 @@ const axios = require('axios');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'gemma4:e2b';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:1.5b';
 
 // ─── [1] PII Detection & Masking ────────────────────────────────────────────
 
@@ -232,11 +232,11 @@ const callOllama = async (sanitizedPrompt) => {
     stream: false,
     keep_alive: '30m',   // keep model loaded between requests — eliminates 16s cold-start
     options: {
-      num_predict: 500,  // datacard JSON needs ~450-499 tokens; default was 600+ causing slow completions
+      num_predict: 650,  // enough for any complete datacard JSON; system prompt tokens do NOT count against this
     },
     messages: [
-      { role: 'system', content: SYSTEM_PROMPT_COMPACT },
-      { role: 'user',   content: `Datacard for: ${sanitizedPrompt}` }
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user',   content: `Generate a datacard for the following request. Include ALL fields and information types specifically mentioned: ${sanitizedPrompt}` }
     ]
   }, { timeout: 60000 });
 
@@ -263,23 +263,31 @@ const generateDatacard = async (prompt) => {
   let usedModel = OLLAMA_MODEL;
 
   try {
-    // [3] LLM — try Ollama first, fall back to Claude, then mock
+    // [3] LLM — try local Ollama first, fall back to Claude API, then mock
     try {
       raw = await callOllama(sanitizedPrompt);
     } catch (ollamaErr) {
       console.warn(`Ollama unavailable (${ollamaErr.message}) — trying Claude fallback`);
 
       if (process.env.ANTHROPIC_API_KEY) {
-        usedModel = 'claude-haiku-4-5';
-        const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-        const res = await client.messages.create({
-          model: 'claude-haiku-4-5',
-          max_tokens: 1024,
-          system: SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: `Generate a datacard for the following request. Include ALL fields and information types specifically mentioned: ${sanitizedPrompt}` }]
-        });
-        const block = res.content.find(b => b.type === 'text');
-        raw = (block?.text || '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        try {
+          usedModel = 'claude-haiku-4-5';
+          const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+          const res = await client.messages.create({
+            model: 'claude-haiku-4-5',
+            max_tokens: 1024,
+            system: SYSTEM_PROMPT,
+            messages: [{ role: 'user', content: `Generate a datacard for the following request. Include ALL fields and information types specifically mentioned: ${sanitizedPrompt}` }]
+          });
+          const block = res.content.find(b => b.type === 'text');
+          raw = (block?.text || '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        } catch (claudeErr) {
+          console.warn(`Claude unavailable (${claudeErr.message}) — using mock`);
+          usedModel = 'mock';
+          const card = generateMockDatacard(sanitizedPrompt);
+          secureLog('generate', { promptLength: sanitizedPrompt.length, detectedPII, model: usedModel, outputValid: true, injectionCount });
+          return card;
+        }
       } else {
         usedModel = 'mock';
         const card = generateMockDatacard(sanitizedPrompt);

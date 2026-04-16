@@ -112,7 +112,7 @@ const GenerateModal = ({ onClose, onGenerate }) => {
                   className="w-full btn-primary mt-4 flex items-center justify-center space-x-2 text-sm"
                 >
                   {loading ? (
-                    <LoadingSpinner size="sm" text="generating — this may take up to 30s..." />
+                    <LoadingSpinner size="sm" text="generating..." />
                   ) : (
                     '✦ generate content'
                   )}
