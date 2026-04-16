@@ -12,12 +12,12 @@ const features = [
   {
     tag: '[ai]',
     title: 'AI-Powered Generation',
-    description: 'Use Claude AI to automatically generate datacard content from a simple natural language prompt.',
+    description: 'Use local AI (Ollama) to automatically generate datacard content from a natural language prompt — with PII masking and prompt injection protection built in.',
   },
   {
-    tag: '[tpl]',
-    title: 'Multiple Templates',
-    description: 'Choose from professional, minimal, and creative templates to match your use case.',
+    tag: '[log]',
+    title: 'Audit Logging',
+    description: 'Every action is logged — logins, card access, share events, and rate-limit hits — with sensitive data automatically redacted before storage.',
   },
   {
     tag: '[shr]',
@@ -25,9 +25,9 @@ const features = [
     description: 'Share cards via expiring links. Set custom expiry, add password protection, or share with no time limit.',
   },
   {
-    tag: '[pwd]',
-    title: 'Password Reset',
-    description: 'Forgot your password? Get a secure reset link instantly shown on screen — no email required.',
+    tag: '[sec]',
+    title: 'Brute Force Protection',
+    description: 'Accounts lock after 5 failed login attempts. JWT access tokens expire in 15 minutes with secure httpOnly refresh token rotation.',
   },
   {
     tag: '[pro]',
