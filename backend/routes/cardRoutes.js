@@ -10,7 +10,9 @@ const {
   revokeShareLink,
   getSharedCard,
   getShareStats,
-  exportCard
+  exportCard,
+  getCardHistory,
+  getCardVersion
 } = require('../controllers/cardController');
 const { protect } = require('../middleware/auth');
 const { datacardValidation, objectIdValidation } = require('../middleware/validator');
@@ -40,5 +42,9 @@ router.get('/:id/share/stats', objectIdValidation, getShareStats);
 
 // Export as password-protected PDF
 router.post('/:id/export', objectIdValidation, exportCard);
+
+// Version history
+router.get('/:id/history', objectIdValidation, getCardHistory);
+router.get('/:id/history/:version', objectIdValidation, getCardVersion);
 
 module.exports = router;

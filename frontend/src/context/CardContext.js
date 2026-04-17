@@ -165,12 +165,17 @@ export const CardProvider = ({ children }) => {
   }, []);
 
   // Generate card with LLM
-  const generateWithLLM = async (prompt) => {
+  const generateWithLLM = async (prompt, referenceText = '') => {
     try {
       setLoading(true);
       setError(null);
-      const response = await llmAPI.generate({ prompt });
-      return { success: true, data: response.data.data.generated };
+      const payload = referenceText.trim() ? { prompt, referenceText } : { prompt };
+      const response = await llmAPI.generate(payload);
+      return {
+        success: true,
+        data: response.data.data.generated,
+        ragUsed: response.data.data.ragUsed || false
+      };
     } catch (err) {
       const message = err.response?.data?.error || 'Failed to generate content';
       setError(message);

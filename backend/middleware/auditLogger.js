@@ -1,5 +1,7 @@
-const fs = require('fs');
-const path = require('path');
+const fs    = require('fs');
+const path  = require('path');
+const https = require('https');
+const http  = require('http');
 
 // Ensure logs directory exists
 const logsDir = path.join(__dirname, '..', 'logs');
@@ -7,7 +9,70 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
-const logFile = path.join(logsDir, 'audit.log');
+const ACTIVE_LOG    = path.join(logsDir, 'audit.log');
+const ROTATION_DAYS = 7;
+let currentLogDate  = null;
+
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * Rotate audit.log if the calendar date has changed since the last write.
+ * Archives the old file as audit.YYYY-MM-DD.log and prunes files older than
+ * ROTATION_DAYS days. Uses only built-in `fs` — no extra packages needed.
+ */
+const rotateIfNeeded = () => {
+  const today = todayStr();
+  if (currentLogDate === today) return;
+
+  if (fs.existsSync(ACTIVE_LOG)) {
+    const archiveDate = currentLogDate || (() => {
+      try {
+        const firstLine = fs.readFileSync(ACTIVE_LOG, 'utf8').split('\n')[0];
+        return JSON.parse(firstLine).timestamp?.slice(0, 10) || today;
+      } catch { return today; }
+    })();
+    if (archiveDate !== today) {
+      fs.renameSync(ACTIVE_LOG, path.join(logsDir, `audit.${archiveDate}.log`));
+    }
+  }
+
+  currentLogDate = today;
+
+  try {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - ROTATION_DAYS);
+    fs.readdirSync(logsDir)
+      .filter(f => /^audit\.\d{4}-\d{2}-\d{2}\.log$/.test(f))
+      .forEach(f => {
+        if (new Date(f.slice(6, 16)) < cutoff)
+          fs.unlinkSync(path.join(logsDir, f));
+      });
+  } catch (e) { console.error('Log pruning error:', e.message); }
+};
+
+/**
+ * Fire-and-forget: POST a redacted log entry to LOG_WEBHOOK_URL if configured.
+ * Never blocks the caller; errors are swallowed with a console warning.
+ */
+const forwardToWebhook = (payload) => {
+  const webhookUrl = process.env.LOG_WEBHOOK_URL;
+  if (!webhookUrl) return;
+  try {
+    const body = JSON.stringify(payload);
+    const u = new URL(webhookUrl);
+    const transport = u.protocol === 'https:' ? https : http;
+    const req = transport.request({
+      hostname: u.hostname,
+      port: u.port || (u.protocol === 'https:' ? 443 : 80),
+      path: u.pathname + u.search,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    }, res => res.resume());
+    req.on('error', e => console.warn('[AUDIT-WEBHOOK] forward failed:', e.message));
+    req.write(body);
+    req.end();
+  } catch (e) { console.warn('[AUDIT-WEBHOOK] setup failed:', e.message); }
+};
 
 // Fields that must never appear in log output
 const SENSITIVE_KEYS = new Set([
@@ -36,13 +101,14 @@ const redact = (obj, depth = 0) => {
  * Write a structured audit log entry to file and console
  */
 const writeLog = (entry) => {
+  rotateIfNeeded();
   const safe = redact({ ...entry, timestamp: new Date().toISOString() });
   const line = JSON.stringify(safe) + '\n';
-  fs.appendFile(logFile, line, (err) => {
+  fs.appendFile(ACTIVE_LOG, line, (err) => {
     if (err) console.error('Audit log write error:', err.message);
   });
-  // Mirror to stdout so logs are visible in server output
   console.log('[AUDIT]', line.trim());
+  forwardToWebhook(safe);
 };
 
 /**
@@ -126,4 +192,4 @@ const requestLogger = (req, res, next) => {
   next();
 };
 
-module.exports = { logAuthEvent, logCardEvent, logSecurityEvent, requestLogger };
+module.exports = { logAuthEvent, logCardEvent, logSecurityEvent, requestLogger, ACTIVE_LOG, logsDir };

@@ -64,12 +64,22 @@ export const cardAPI = {
   }),
   getShareStats: (id) => api.get(`/cards/${id}/share/stats`),
   exportPDF: (id, password) => api.post(`/cards/${id}/export`, { password }, { responseType: 'blob' }),
+  getHistory: (id) => api.get(`/cards/${id}/history`),
+  getVersion: (id, version) => api.get(`/cards/${id}/history/${version}`),
 };
 
 // LLM API calls
 export const llmAPI = {
   generate: (data) => api.post('/generate', data, { timeout: 120000 }), // 2 min — LLM can be slow
   getTemplates: () => api.get('/generate/templates'),
+  extractDocument: (file) => {
+    const form = new FormData();
+    form.append('document', file);
+    return api.post('/generate/extract-document', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000
+    });
+  }
 };
 
 export default api;

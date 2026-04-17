@@ -1,15 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCards } from '../../context/CardContext';
 import LoadingSpinner from '../Common/LoadingSpinner';
 import TerminalCard from '../Common/TerminalCard';
-import { HiX } from 'react-icons/hi';
+import { llmAPI } from '../../services/api';
+import { HiX, HiUpload, HiDocument, HiTrash } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
 const GenerateModal = ({ onClose, onGenerate }) => {
   const { generateWithLLM, getTemplates, loading } = useCards();
   const [prompt, setPrompt] = useState('');
+  const [referenceText, setReferenceText] = useState('');
+  const [showReferenceInput, setShowReferenceInput] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState(null);       // { name, charCount, truncated }
+  const [extracting, setExtracting] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [preview, setPreview] = useState(null);
+  const [ragUsed, setRagUsed] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const loadTemplates = async () => {
@@ -27,11 +34,12 @@ const GenerateModal = ({ onClose, onGenerate }) => {
       return;
     }
 
-    const result = await generateWithLLM(prompt);
+    const result = await generateWithLLM(prompt, referenceText);
 
     if (result.success) {
       setPreview(result.data);
-      toast.success('content generated! review below.');
+      setRagUsed(result.ragUsed || false);
+      toast.success(result.ragUsed ? 'rag-grounded content generated!' : 'content generated! review below.');
     } else {
       toast.error(result.error);
     }
@@ -45,6 +53,42 @@ const GenerateModal = ({ onClose, onGenerate }) => {
 
   const handleTemplateClick = (template) => {
     setPrompt(template.examplePrompt);
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Client-side guard before hitting the server
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('file too large — maximum 5 MB');
+      return;
+    }
+
+    setExtracting(true);
+    setUploadedFile(null);
+    setReferenceText('');
+
+    try {
+      const res = await llmAPI.extractDocument(file);
+      const { text, charCount, truncated, filename } = res.data.data;
+      setReferenceText(text);
+      setUploadedFile({ name: filename, charCount, truncated });
+      toast.success(`document scanned — ${charCount.toLocaleString()} characters extracted`);
+    } catch (err) {
+      const msg = err.response?.data?.error || 'failed to read document';
+      toast.error(msg);
+    } finally {
+      setExtracting(false);
+      // Reset the input so the same file can be re-selected if needed
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleClearDocument = () => {
+    setReferenceText('');
+    setUploadedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
@@ -105,6 +149,103 @@ const GenerateModal = ({ onClose, onGenerate }) => {
                   </p>
                 </div>
 
+                {/* RAG Reference Document (optional) */}
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowReferenceInput(v => !v);
+                      if (showReferenceInput) handleClearDocument();
+                    }}
+                    className="flex items-center gap-2 text-xs font-mono text-term-muted hover:text-term-default transition-colors"
+                  >
+                    <span className="text-term-border">{showReferenceInput ? '▼' : '▶'}</span>
+                    <span>{showReferenceInput ? 'hide' : '+ attach'} reference document</span>
+                    <span className="px-1.5 py-0.5 bg-ai-muted text-ai border border-ai text-xs font-mono" style={{ borderRadius: '2px' }}>rag</span>
+                  </button>
+
+                  {showReferenceInput && (
+                    <div className="mt-3 space-y-3">
+                      <p className="text-xs text-term-muted font-mono">
+                        upload a PDF or .txt file — the ai will ground field values in the document content.
+                      </p>
+
+                      {/* File picker */}
+                      {!uploadedFile && (
+                        <div>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".pdf,.txt,.md"
+                            onChange={handleFileChange}
+                            className="hidden"
+                            id="rag-file-input"
+                          />
+                          <label
+                            htmlFor="rag-file-input"
+                            className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed border-term-border hover:border-term-subtle cursor-pointer transition-colors font-mono text-xs text-term-muted hover:text-term-default ${extracting ? 'opacity-50 pointer-events-none' : ''}`}
+                            style={{ borderRadius: '2px' }}
+                          >
+                            {extracting ? (
+                              <LoadingSpinner size="sm" text="scanning document..." />
+                            ) : (
+                              <>
+                                <HiUpload className="w-4 h-4" />
+                                <span>click to upload PDF or .txt (max 5 MB)</span>
+                              </>
+                            )}
+                          </label>
+                        </div>
+                      )}
+
+                      {/* Uploaded file confirmation */}
+                      {uploadedFile && (
+                        <div className="p-3 bg-ai-muted border border-ai font-mono text-xs" style={{ borderRadius: '2px' }}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2">
+                              <HiDocument className="w-4 h-4 text-ai mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-ai font-semibold">{uploadedFile.name}</p>
+                                <p className="text-term-muted mt-0.5">
+                                  {uploadedFile.charCount.toLocaleString()} characters extracted
+                                  {uploadedFile.truncated && (
+                                    <span className="text-warn ml-1">(truncated to 10,000)</span>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={handleClearDocument}
+                              className="text-term-muted hover:text-danger transition-colors flex-shrink-0 mt-0.5"
+                              title="remove document"
+                            >
+                              <HiTrash className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Paste fallback */}
+                      {!uploadedFile && !extracting && (
+                        <div>
+                          <p className="text-xs text-term-muted font-mono mb-1">or paste text directly:</p>
+                          <textarea
+                            value={referenceText}
+                            onChange={(e) => setReferenceText(e.target.value)}
+                            className="input"
+                            rows={4}
+                            placeholder="paste a CV, bio, or any reference text here..."
+                            maxLength={10000}
+                          />
+                          <p className="mt-1 text-xs text-term-muted font-mono">
+                            {referenceText.length}/10,000 characters
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Generate button */}
                 <button
                   onClick={handleGenerate}
@@ -112,9 +253,9 @@ const GenerateModal = ({ onClose, onGenerate }) => {
                   className="w-full btn-primary mt-4 flex items-center justify-center space-x-2 text-sm"
                 >
                   {loading ? (
-                    <LoadingSpinner size="sm" text="generating..." />
+                    <LoadingSpinner size="sm" text={referenceText.trim() ? 'retrieving & generating...' : 'generating...'} />
                   ) : (
-                    '✦ generate content'
+                    referenceText.trim() ? '✦ generate with rag' : '✦ generate content'
                   )}
                 </button>
               </>
@@ -127,6 +268,13 @@ const GenerateModal = ({ onClose, onGenerate }) => {
                 >
                   + content generated! review below and click "apply" to use it.
                 </div>
+
+                {ragUsed && (
+                  <div className="flex items-center gap-2 p-2 bg-ai-muted border border-ai font-mono text-xs text-ai" style={{ borderRadius: '2px' }}>
+                    <span>◈</span>
+                    <span>rag-grounded — field values sourced from your reference document</span>
+                  </div>
+                )}
 
                 {/* Title */}
                 <div className="kv-row">
@@ -184,7 +332,7 @@ const GenerateModal = ({ onClose, onGenerate }) => {
                 {/* Actions */}
                 <div className="flex space-x-3 pt-4">
                   <button
-                    onClick={() => setPreview(null)}
+                    onClick={() => { setPreview(null); setRagUsed(false); }}
                     className="flex-1 btn-secondary text-xs"
                   >
                     regenerate

@@ -1,4 +1,5 @@
 const Datacard = require('../models/Datacard');
+const CardVersion = require('../models/CardVersion');
 const ShareView = require('../models/ShareView');
 const { encrypt, decrypt } = require('../utils/encryption');
 const crypto = require('crypto');
@@ -207,6 +208,28 @@ const updateCard = async (req, res) => {
       return field;
     });
 
+    // --- Version History: snapshot current state before overwriting ---
+    const snapshotVersion = datacard.currentVersion || 1;
+    await CardVersion.create({
+      cardId:      datacard._id,
+      userId:      req.user.id,
+      version:     snapshotVersion,
+      title:       datacard.title,
+      description: datacard.description || '',
+      fields:      datacard.fields.map(f => ({
+        label:     f.label,
+        value:     f.value,
+        type:      f.type,
+        encrypted: f.encrypted
+      })),
+      template:    datacard.template,
+      visibility:  datacard.visibility,
+      tags:        datacard.tags || [],
+      savedAt:     datacard.updatedAt || new Date(),
+      changeNote:  req.body.changeNote || ''
+    });
+    // ---------------------------------------------------------------
+
     datacard = await Datacard.findByIdAndUpdate(
       req.params.id,
       {
@@ -215,10 +238,13 @@ const updateCard = async (req, res) => {
         fields: processedFields,
         template,
         visibility,
-        tags
+        tags,
+        currentVersion: snapshotVersion + 1
       },
       { new: true, runValidators: true }
     );
+
+    logCardEvent('update', req, { cardId: datacard._id, version: snapshotVersion + 1 });
 
     res.status(200).json({
       success: true,
@@ -230,6 +256,85 @@ const updateCard = async (req, res) => {
     res.status(500).json({
       error: 'Failed to update datacard'
     });
+  }
+};
+
+/**
+ * @desc    Get version history list for a datacard (metadata only, no field values)
+ * @route   GET /api/cards/:id/history
+ * @access  Private (owner only)
+ */
+const getCardHistory = async (req, res) => {
+  try {
+    const datacard = await Datacard.findById(req.params.id).select('userId currentVersion title');
+    if (!datacard) return res.status(404).json({ error: 'Datacard not found' });
+    if (datacard.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const versions = await CardVersion.find({ cardId: req.params.id })
+      .sort({ version: -1 })
+      .select('version savedAt changeNote title -_id');
+
+    res.status(200).json({
+      success: true,
+      data: {
+        cardId: req.params.id,
+        currentVersion: datacard.currentVersion || 1,
+        history: versions
+      }
+    });
+  } catch (error) {
+    console.error('Get card history error:', error);
+    res.status(500).json({ error: 'Failed to retrieve card history' });
+  }
+};
+
+/**
+ * @desc    Get a specific version snapshot (with decrypted fields for owner)
+ * @route   GET /api/cards/:id/history/:version
+ * @access  Private (owner only)
+ */
+const getCardVersion = async (req, res) => {
+  try {
+    const datacard = await Datacard.findById(req.params.id).select('userId');
+    if (!datacard) return res.status(404).json({ error: 'Datacard not found' });
+    if (datacard.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const versionNum = parseInt(req.params.version, 10);
+    if (isNaN(versionNum) || versionNum < 1) {
+      return res.status(400).json({ error: 'Invalid version number' });
+    }
+
+    const snapshot = await CardVersion.findOne({
+      cardId: req.params.id,
+      version: versionNum
+    });
+
+    if (!snapshot) return res.status(404).json({ error: 'Version not found' });
+
+    // Decrypt fields for the owner — same pattern as getCard
+    const snapshotObj = snapshot.toObject();
+    snapshotObj.fields = snapshotObj.fields.map(field => {
+      if (field.encrypted && field.value) {
+        try {
+          return { ...field, value: decrypt(field.value) };
+        } catch {
+          return { ...field, value: '[Decryption Error]' };
+        }
+      }
+      return field;
+    });
+
+    res.status(200).json({
+      success: true,
+      data: { version: snapshotObj }
+    });
+  } catch (error) {
+    console.error('Get card version error:', error);
+    res.status(500).json({ error: 'Failed to retrieve card version' });
   }
 };
 
@@ -688,6 +793,8 @@ const exportCard = async (req, res) => {
 };
 
 module.exports = {
+  getCardHistory,
+  getCardVersion,
   createCard,
   getCards,
   getCard,

@@ -84,6 +84,12 @@ const datacardSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Version tracking — incremented on every update; history stored in CardVersion collection
+  currentVersion: {
+    type: Number,
+    default: 1,
+    min: 1
+  },
   // Share link view tracking (fast counters — full history in ShareView collection)
   viewCount: {
     type: Number,

@@ -14,6 +14,7 @@ import {
   HiX,
   HiEye,
   HiEyeOff,
+  HiClock,
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
@@ -31,10 +32,15 @@ const CardViewer = () => {
   const { fetchCard, currentCard, loading, error } = useCards();
   const [showShareModal, setShowShareModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [revealedFields, setRevealedFields] = useState({});
   const [exportPassword, setExportPassword] = useState('');
   const [exportLoading, setExportLoading] = useState(false);
   const [protectWithPassword, setProtectWithPassword] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState(null);
+  const [versionLoading, setVersionLoading] = useState(false);
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -64,6 +70,32 @@ const CardViewer = () => {
       toast.error('failed to export PDF');
     } finally {
       setExportLoading(false);
+    }
+  };
+
+  const handleOpenHistory = async () => {
+    setShowHistoryPanel(true);
+    if (history.length > 0) return; // already loaded
+    setHistoryLoading(true);
+    try {
+      const res = await cardAPI.getHistory(id);
+      setHistory(res.data.data.history || []);
+    } catch {
+      toast.error('failed to load version history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleLoadVersion = async (version) => {
+    setVersionLoading(true);
+    try {
+      const res = await cardAPI.getVersion(id, version);
+      setSelectedVersion(res.data.data.version);
+    } catch {
+      toast.error('failed to load version snapshot');
+    } finally {
+      setVersionLoading(false);
     }
   };
 
@@ -103,6 +135,19 @@ const CardViewer = () => {
         </button>
 
         <div className="flex items-center space-x-3">
+          <button
+            onClick={handleOpenHistory}
+            className="btn-secondary flex items-center space-x-1 text-xs"
+            title="version history"
+          >
+            <HiClock className="w-4 h-4" />
+            <span className="hidden sm:inline">history</span>
+            {currentCard.currentVersion > 1 && (
+              <span className="ml-1 px-1 bg-term-border text-term-muted text-xs font-mono" style={{ borderRadius: '2px' }}>
+                v{currentCard.currentVersion}
+              </span>
+            )}
+          </button>
           <button
             onClick={() => setShowExportModal(true)}
             className="btn-secondary flex items-center space-x-1 text-xs"
@@ -228,6 +273,102 @@ const CardViewer = () => {
           </div>
         </TerminalCard>
       </div>
+
+      {/* Version History Panel */}
+      {showHistoryPanel && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="term-modal-backdrop" onClick={() => { setShowHistoryPanel(false); setSelectedVersion(null); }} />
+          <div className="flex min-h-full items-center justify-center p-4 relative z-50">
+            <TerminalCard title="version history" className="w-full max-w-lg max-h-[80vh] overflow-hidden">
+              <button
+                onClick={() => { setShowHistoryPanel(false); setSelectedVersion(null); }}
+                className="absolute top-3 right-3 text-term-muted hover:text-term-default transition-colors"
+              >
+                <HiX className="w-4 h-4" />
+              </button>
+
+              <div className="overflow-y-auto max-h-[calc(80vh-120px)]">
+                {/* Version snapshot detail */}
+                {selectedVersion ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <button
+                        onClick={() => setSelectedVersion(null)}
+                        className="text-xs font-mono text-term-muted hover:text-term-default flex items-center gap-1 transition-colors"
+                      >
+                        <HiArrowLeft className="w-3 h-3" /> back to history
+                      </button>
+                    </div>
+                    <div className="p-2 bg-term-base border border-term-border font-mono text-xs text-term-muted" style={{ borderRadius: '2px' }}>
+                      snapshot · version {selectedVersion.version} · {new Date(selectedVersion.savedAt).toLocaleString()}
+                    </div>
+                    <div className="kv-row">
+                      <span className="kv-key">title</span>
+                      <span className="kv-value font-bold text-term-bright">{selectedVersion.title}</span>
+                    </div>
+                    {selectedVersion.description && (
+                      <div className="kv-row">
+                        <span className="kv-key">description</span>
+                        <span className="kv-value">{selectedVersion.description}</span>
+                      </div>
+                    )}
+                    <p className="text-xs text-term-muted font-mono uppercase tracking-widest mt-3 mb-1">
+                      fields ({selectedVersion.fields?.length || 0})
+                    </p>
+                    {selectedVersion.fields?.map((field, i) => (
+                      <div key={i} className="kv-row">
+                        <span className="kv-key">{field.label}</span>
+                        <span className="kv-value flex items-center gap-2">
+                          <span>{field.encrypted ? '••••••••' : (field.value || '—')}</span>
+                          <span className="text-term-muted text-xs">[{field.type}]</span>
+                          {field.encrypted && <span className="badge-yellow text-xs">encrypted</span>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : historyLoading ? (
+                  <div className="flex justify-center py-8">
+                    <LoadingSpinner size="sm" text="loading history..." />
+                  </div>
+                ) : history.length === 0 ? (
+                  <div className="text-center py-8 font-mono text-term-muted text-xs">
+                    <p>no previous versions found.</p>
+                    <p className="mt-1">versions are saved automatically on every edit.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <p className="text-xs text-term-muted font-mono mb-3">
+                      {history.length} saved version{history.length !== 1 ? 's' : ''} · click to inspect
+                    </p>
+                    {history.map((entry) => (
+                      <button
+                        key={entry.version}
+                        onClick={() => handleLoadVersion(entry.version)}
+                        disabled={versionLoading}
+                        className="w-full text-left p-3 border border-term-border hover:border-term-subtle bg-term-base transition-colors font-mono"
+                        style={{ borderRadius: '2px' }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-term-muted">v{entry.version}</span>
+                            <span className="text-xs text-term-default">{entry.title}</span>
+                          </div>
+                          <span className="text-xs text-term-muted">
+                            {new Date(entry.savedAt).toLocaleDateString()} {new Date(entry.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        {entry.changeNote && (
+                          <p className="mt-1 text-xs text-term-muted truncate">{entry.changeNote}</p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </TerminalCard>
+          </div>
+        </div>
+      )}
 
       {/* LLM badge */}
       {currentCard.generatedByLLM && (

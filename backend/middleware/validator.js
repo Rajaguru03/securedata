@@ -141,6 +141,13 @@ const llmPromptValidation = [
     .notEmpty().withMessage('Prompt is required')
     .isLength({ min: 10, max: 500 }).withMessage('Prompt must be 10-500 characters'),
 
+  // Optional RAG reference document — plain text only, no HTML/scripts
+  body('referenceText')
+    .optional()
+    .isString().withMessage('Reference text must be a string')
+    .isLength({ max: 10000 }).withMessage('Reference text cannot exceed 10,000 characters')
+    .customSanitizer(val => val.replace(/<[^>]*>/g, '').trim()), // strip any HTML tags
+
   handleValidationErrors
 ];
 

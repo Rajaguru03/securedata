@@ -1,4 +1,5 @@
 const { generateDatacard } = require('../utils/llmService');
+const { parseDocument } = require('../utils/documentParser');
 
 /**
  * @desc    Generate datacard content using LLM
@@ -7,17 +8,22 @@ const { generateDatacard } = require('../utils/llmService');
  */
 const generateContent = async (req, res) => {
   try {
-    const { prompt } = req.body;
+    const { prompt, referenceText } = req.body;
 
     // sanitizePrompt is applied inside generateDatacard (llmService.js)
-    const generatedCard = await generateDatacard(prompt);
+    // referenceText is optional — when provided, RAG retrieval grounds the output
+    const generatedCard = await generateDatacard(prompt, referenceText || '');
+
+    // Strip internal ragUsed flag from the card object before returning
+    const { ragUsed, ...cardData } = generatedCard;
 
     res.status(200).json({
       success: true,
       message: 'Datacard content generated successfully',
       data: {
-        generated: generatedCard,
-        generatedByLLM: true
+        generated: cardData,
+        generatedByLLM: true,
+        ragUsed: !!ragUsed
       }
     });
   } catch (error) {
@@ -80,4 +86,55 @@ const getTemplates = async (req, res) => {
   });
 };
 
-module.exports = { generateContent, getTemplates };
+/**
+ * @desc    Extract text from an uploaded PDF or .txt file for RAG use
+ * @route   POST /api/generate/extract-document
+ * @access  Private
+ */
+const extractDocument = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { buffer, mimetype, originalname, size } = req.file;
+
+    // Size guard (5 MB hard cap — multer also enforces this)
+    if (size > 5 * 1024 * 1024) {
+      return res.status(400).json({ error: 'File too large. Maximum size is 5 MB.' });
+    }
+
+    const { text, truncated, charCount, originalCharCount } = await parseDocument(
+      buffer,
+      mimetype,
+      originalname
+    );
+
+    if (!text || text.trim().length < 20) {
+      return res.status(422).json({
+        error: 'Could not extract readable text from this file. Make sure it is not a scanned image PDF.'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        text,
+        charCount,
+        truncated,
+        originalCharCount,
+        filename: originalname
+      }
+    });
+  } catch (error) {
+    console.error('Document extraction error:', error.message);
+
+    if (error.message.startsWith('Unsupported file type')) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.status(500).json({ error: 'Failed to extract text from document.' });
+  }
+};
+
+module.exports = { generateContent, getTemplates, extractDocument };

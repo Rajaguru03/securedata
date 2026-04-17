@@ -12,9 +12,10 @@ require('dotenv').config();
 const connectDB = require('./config/db');
 
 // Import routes
-const authRoutes = require('./routes/authRoutes');
-const cardRoutes = require('./routes/cardRoutes');
-const llmRoutes = require('./routes/llmRoutes');
+const authRoutes  = require('./routes/authRoutes');
+const cardRoutes  = require('./routes/cardRoutes');
+const llmRoutes   = require('./routes/llmRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 // Initialize express app
 const app = express();
@@ -106,6 +107,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api/generate', llmRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((req, res) => {
