@@ -62,6 +62,27 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['user', 'admin'],
     default: 'user'
+  },
+  // Two-factor authentication (TOTP)
+  twoFactorSecret: {
+    type: String,
+    default: null,
+    select: false
+  },
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
+  },
+  // Temporary token issued after password check, before 2FA code entry
+  twoFactorTempToken: {
+    type: String,
+    default: null,
+    select: false
+  },
+  twoFactorTempExpire: {
+    type: Date,
+    default: null,
+    select: false
   }
 });
 

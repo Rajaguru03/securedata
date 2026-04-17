@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const { authenticator } = require('otplib');
+const QRCode = require('qrcode');
 const User = require('../models/User');
 const { generateToken, generateRefreshToken } = require('../middleware/auth');
 const { logAuthEvent } = require('../middleware/auditLogger');
@@ -93,6 +95,22 @@ const loginUser = async (req, res) => {
 
     // Successful login — reset lockout
     await user.resetLoginAttempts();
+
+    // If 2FA is enabled, issue a short-lived temp token instead of real tokens
+    if (user.twoFactorEnabled) {
+      const tempRaw = crypto.randomBytes(32).toString('hex');
+      const tempHashed = crypto.createHash('sha256').update(tempRaw).digest('hex');
+      await User.findByIdAndUpdate(user._id, {
+        twoFactorTempToken: tempHashed,
+        twoFactorTempExpire: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+      });
+      logAuthEvent('login_2fa_required', req, { userId: user._id });
+      return res.status(200).json({
+        success: true,
+        twoFactorRequired: true,
+        tempToken: tempRaw,
+      });
+    }
 
     const accessToken = generateToken(user._id);
     const { raw: refreshRaw, hashed: refreshHashed } = generateRefreshToken();
@@ -247,7 +265,7 @@ const getProfile = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        user: { id: user._id, name: user.name, email: user.email, createdAt: user.createdAt },
+        user: { id: user._id, name: user.name, email: user.email, createdAt: user.createdAt, twoFactorEnabled: user.twoFactorEnabled },
         stats: { totalCards, totalShared: sharedCards.length, activeShared: activeShared.length, totalViews },
         sharedCards: sharedCards.map(c => ({
           id: c._id,
@@ -336,4 +354,205 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, refreshAccessToken, logoutUser, getMe, updateUser, getProfile, forgotPassword, resetPassword };
+// ─── GDPR: Right to Erasure ─────────────────────────────────────────────────
+
+/**
+ * @desc    Delete account and all associated data (GDPR Art. 17)
+ * @route   DELETE /api/auth/account
+ * @access  Private
+ */
+const deleteAccount = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: 'Password is required to confirm account deletion.' });
+
+    const user = await User.findById(req.user.id).select('+password');
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      logAuthEvent('delete_account_wrong_password', req, { userId: req.user.id });
+      return res.status(401).json({ error: 'Incorrect password.' });
+    }
+
+    const Datacard    = require('../models/Datacard');
+    const CardVersion = require('../models/CardVersion');
+
+    // Find all cards belonging to this user
+    const cardIds = (await Datacard.find({ userId: req.user.id }).select('_id')).map(c => c._id);
+
+    // Delete versions and cards
+    await CardVersion.deleteMany({ cardId: { $in: cardIds } });
+    await Datacard.deleteMany({ userId: req.user.id });
+
+    // Delete the user account
+    await User.findByIdAndDelete(req.user.id);
+
+    // Clear session cookie
+    res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'strict' });
+
+    logAuthEvent('account_deleted', req, { userId: req.user.id, cardsDeleted: cardIds.length });
+
+    res.status(200).json({ success: true, message: 'Account and all associated data have been permanently deleted.' });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ error: 'Failed to delete account. Please try again.' });
+  }
+};
+
+// ─── 2FA: TOTP Setup & Management ───────────────────────────────────────────
+
+/**
+ * @desc    Generate a 2FA secret and QR code (does not enable 2FA yet)
+ * @route   POST /api/auth/2fa/setup
+ * @access  Private
+ */
+const setup2FA = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (user.twoFactorEnabled) {
+      return res.status(400).json({ error: '2FA is already enabled on this account.' });
+    }
+
+    const secret = authenticator.generateSecret();
+    const otpAuthUrl = authenticator.keyuri(user.email, 'SecureCard', secret);
+    const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl);
+
+    // Store the secret temporarily (not enabled until verified)
+    await User.findByIdAndUpdate(req.user.id, { twoFactorSecret: secret });
+
+    res.status(200).json({
+      success: true,
+      data: { qrCode: qrCodeDataUrl, secret },
+    });
+  } catch (error) {
+    console.error('2FA setup error:', error);
+    res.status(500).json({ error: 'Failed to set up 2FA.' });
+  }
+};
+
+/**
+ * @desc    Verify TOTP code and permanently enable 2FA
+ * @route   POST /api/auth/2fa/verify-setup
+ * @access  Private
+ */
+const verifySetup2FA = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Verification code is required.' });
+
+    const user = await User.findById(req.user.id).select('+twoFactorSecret');
+    if (!user.twoFactorSecret) {
+      return res.status(400).json({ error: 'No 2FA setup in progress. Call /2fa/setup first.' });
+    }
+
+    const isValid = authenticator.verify({ token, secret: user.twoFactorSecret });
+    if (!isValid) {
+      logAuthEvent('2fa_verify_setup_failed', req, { userId: req.user.id });
+      return res.status(400).json({ error: 'Invalid verification code. Please try again.' });
+    }
+
+    await User.findByIdAndUpdate(req.user.id, { twoFactorEnabled: true });
+    logAuthEvent('2fa_enabled', req, { userId: req.user.id });
+
+    res.status(200).json({ success: true, message: '2FA has been enabled on your account.' });
+  } catch (error) {
+    console.error('2FA verify setup error:', error);
+    res.status(500).json({ error: 'Failed to verify 2FA setup.' });
+  }
+};
+
+/**
+ * @desc    Disable 2FA (requires valid TOTP code)
+ * @route   POST /api/auth/2fa/disable
+ * @access  Private
+ */
+const disable2FA = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Verification code is required to disable 2FA.' });
+
+    const user = await User.findById(req.user.id).select('+twoFactorSecret');
+    if (!user.twoFactorEnabled) {
+      return res.status(400).json({ error: '2FA is not enabled on this account.' });
+    }
+
+    const isValid = authenticator.verify({ token, secret: user.twoFactorSecret });
+    if (!isValid) {
+      logAuthEvent('2fa_disable_failed', req, { userId: req.user.id });
+      return res.status(400).json({ error: 'Invalid verification code.' });
+    }
+
+    await User.findByIdAndUpdate(req.user.id, {
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
+    });
+    logAuthEvent('2fa_disabled', req, { userId: req.user.id });
+
+    res.status(200).json({ success: true, message: '2FA has been disabled.' });
+  } catch (error) {
+    console.error('2FA disable error:', error);
+    res.status(500).json({ error: 'Failed to disable 2FA.' });
+  }
+};
+
+/**
+ * @desc    Complete login — verify TOTP code using temp token from login step
+ * @route   POST /api/auth/2fa/complete-login
+ * @access  Public
+ */
+const completeLogin2FA = async (req, res) => {
+  try {
+    const { tempToken, token } = req.body;
+    if (!tempToken || !token) {
+      return res.status(400).json({ error: 'Temp token and verification code are required.' });
+    }
+
+    const hashedTemp = crypto.createHash('sha256').update(tempToken).digest('hex');
+    const user = await User.findOne({
+      twoFactorTempToken: hashedTemp,
+      twoFactorTempExpire: { $gt: new Date() },
+    }).select('+twoFactorSecret +twoFactorTempToken +twoFactorTempExpire');
+
+    if (!user) {
+      return res.status(401).json({ error: 'Session expired or invalid. Please log in again.' });
+    }
+
+    const isValid = authenticator.verify({ token, secret: user.twoFactorSecret });
+    if (!isValid) {
+      logAuthEvent('2fa_login_failed', req, { userId: user._id });
+      return res.status(401).json({ error: 'Invalid verification code.' });
+    }
+
+    // Clear temp token, issue real tokens
+    const accessToken = generateToken(user._id);
+    const { raw: refreshRaw, hashed: refreshHashed } = generateRefreshToken();
+    await User.findByIdAndUpdate(user._id, {
+      refreshToken: refreshHashed,
+      twoFactorTempToken: null,
+      twoFactorTempExpire: null,
+    });
+
+    logAuthEvent('login_success', req, { userId: user._id, method: '2fa' });
+
+    res.cookie('refreshToken', refreshRaw, REFRESH_COOKIE_OPTIONS);
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        user: { id: user._id, name: user.name, email: user.email },
+        token: accessToken,
+      },
+    });
+  } catch (error) {
+    console.error('2FA complete login error:', error);
+    res.status(500).json({ error: 'Failed to complete login.' });
+  }
+};
+
+module.exports = {
+  registerUser, loginUser, refreshAccessToken, logoutUser,
+  getMe, updateUser, getProfile, forgotPassword, resetPassword,
+  deleteAccount,
+  setup2FA, verifySetup2FA, disable2FA, completeLogin2FA,
+};

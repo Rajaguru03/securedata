@@ -61,6 +61,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// Permissions-Policy — restrict access to sensitive browser APIs
+// Helmet does not set this header automatically; we add it explicitly.
+app.use((req, res, next) => {
+  res.setHeader(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), interest-cohort=()'
+  );
+  next();
+});
+
 // Sanitize request body and params to prevent NoSQL injection ($gt, $where, etc.)
 // Uses sanitize() directly to avoid Express 5 read-only req.query conflict
 app.use((req, res, next) => {
