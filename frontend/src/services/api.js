@@ -50,11 +50,6 @@ export const authAPI = {
   resetPassword: (token, password) => api.post(`/auth/reset-password/${token}`, { password }),
   // GDPR
   deleteAccount: (password) => api.delete('/auth/account', { data: { password } }),
-  // 2FA
-  setup2FA: () => api.post('/auth/2fa/setup'),
-  verifySetup2FA: (token) => api.post('/auth/2fa/verify-setup', { token }),
-  disable2FA: (token) => api.post('/auth/2fa/disable', { token }),
-  completeLogin2FA: (tempToken, token) => api.post('/auth/2fa/complete-login', { tempToken, token }),
 };
 
 // Datacard API calls

@@ -53,13 +53,8 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const response = await authAPI.login({ email, password });
-
-      // 2FA required — return temp token for second step
-      if (response.data.twoFactorRequired) {
-        return { success: true, twoFactorRequired: true, tempToken: response.data.tempToken };
-      }
-
       const { user, token } = response.data.data;
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
@@ -67,25 +62,6 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.error || 'Login failed';
-      setError(message);
-      return { success: false, error: message };
-    }
-  };
-
-  // Complete 2FA login with TOTP code
-  const complete2FALogin = async (tempToken, totpCode) => {
-    try {
-      setError(null);
-      const response = await authAPI.completeLogin2FA(tempToken, totpCode);
-      const { user, token } = response.data.data;
-
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      setUser(user);
-
-      return { success: true };
-    } catch (err) {
-      const message = err.response?.data?.error || '2FA verification failed';
       setError(message);
       return { success: false, error: message };
     }
@@ -126,7 +102,6 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
     register,
     login,
-    complete2FALogin,
     logout,
     updateProfile,
     clearError,
