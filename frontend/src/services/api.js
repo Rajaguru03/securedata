@@ -66,6 +66,8 @@ export const cardAPI = {
   }),
   getShareStats: (id) => api.get(`/cards/${id}/share/stats`),
   exportPDF: (id, password) => api.post(`/cards/${id}/export`, { password }, { responseType: 'blob' }),
+  exportMarkdown: (id) => api.get(`/cards/${id}/export/markdown`, { responseType: 'blob' }),
+  exportJSON: (id) => api.get(`/cards/${id}/export/json`, { responseType: 'blob' }),
   getHistory: (id) => api.get(`/cards/${id}/history`),
   getVersion: (id, version) => api.get(`/cards/${id}/history/${version}`),
 };

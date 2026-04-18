@@ -387,6 +387,33 @@ const callOllamaRaw = async (systemPrompt, userMessage, ragUsed = false) => {
 };
 
 /**
+ * Section-specific prompt instructions — mirrors the paper's role-based prompting.
+ * Each section tells the LLM exactly which fields to generate, preventing overlap
+ * and improving precision compared to a single open-ended prompt.
+ */
+const SECTION_INSTRUCTIONS = {
+  contact: `SECTION FOCUS — Contact Information:
+Generate ONLY fields related to direct contact: full name, email address, phone number, physical address, city, country, and any other direct contact methods.
+Do NOT include professional background, education, or social media links.`,
+
+  professional: `SECTION FOCUS — Professional Background:
+Generate ONLY fields related to work: job title, company/organisation, years of experience, key skills, areas of expertise, previous roles, and career highlights.
+Do NOT include personal contact details or social media links.`,
+
+  academic: `SECTION FOCUS — Academic Information:
+Generate ONLY fields related to education: institution/university name, degree type, field of study, graduation year, GPA or grade, relevant coursework, academic achievements, and certifications.
+Do NOT include contact details or professional work history.`,
+
+  social: `SECTION FOCUS — Online Presence:
+Generate ONLY fields related to online profiles: LinkedIn URL, GitHub URL, personal website or portfolio URL, Twitter/X handle, and any other professional social accounts.
+Use type "url" for all link fields.`,
+
+  overview: `SECTION FOCUS — Overview & Summary:
+Generate ONLY a meaningful title, a concise professional description (2–3 sentences), and 3–5 relevant tags.
+The fields array should be empty — this section is metadata only.`,
+};
+
+/**
  * Generate datacard content.
  *
  * Pipeline:
@@ -396,9 +423,10 @@ const callOllamaRaw = async (systemPrompt, userMessage, ragUsed = false) => {
  *
  * @param {string} prompt        - user's natural-language description
  * @param {string} referenceText - optional reference document for RAG grounding
- * @returns {{ ...card, ragUsed: boolean }}
+ * @param {string} section       - optional section focus: contact|professional|academic|social|overview
+ * @returns {{ ...card, ragUsed: boolean, completenessScore: number, faithfulnessScore: number|null }}
  */
-const generateDatacard = async (prompt, referenceText = '') => {
+const generateDatacard = async (prompt, referenceText = '', section = '') => {
 
   // [0] RAG — retrieve relevant context from reference document if supplied
   let retrievedContext = '';
@@ -413,9 +441,12 @@ const generateDatacard = async (prompt, referenceText = '') => {
   // [2] Prompt Guardrails / Sanitization
   const { sanitized: sanitizedPrompt, injectionCount } = sanitizePrompt(piiMasked);
 
+  // Section-based role prompt suffix (GAP 2 — mirrors paper's role-based prompting)
+  const sectionSuffix = SECTION_INSTRUCTIONS[section] ? `\n\n${SECTION_INSTRUCTIONS[section]}` : '';
+
   // Select system prompts — Ollama (small model) uses compact single-line format
-  const ollamaSystemPrompt = ragUsed ? SYSTEM_PROMPT_COMPACT_RAG : SYSTEM_PROMPT_COMPACT;
-  const claudeSystemPrompt = ragUsed ? SYSTEM_PROMPT_RAG : SYSTEM_PROMPT;
+  const ollamaSystemPrompt = (ragUsed ? SYSTEM_PROMPT_COMPACT_RAG : SYSTEM_PROMPT_COMPACT) + (sectionSuffix ? ` ${SECTION_INSTRUCTIONS[section]}` : '');
+  const claudeSystemPrompt = (ragUsed ? SYSTEM_PROMPT_RAG : SYSTEM_PROMPT) + sectionSuffix;
   const userMessage = ragUsed
     ? `REFERENCE DOCUMENT:\n${retrievedContext}\n\n---\nUsing ONLY the information in the document above, generate a datacard for: ${sanitizedPrompt}`
     : `Generate a datacard for the following request. Include ALL fields and information types specifically mentioned: ${sanitizedPrompt}`;
@@ -494,7 +525,11 @@ const generateDatacard = async (prompt, referenceText = '') => {
     const { card: encryptedCard, autoEncryptedCount } = enforceFieldEncryption(validated);
 
     // [4b] Output PII Scan — mask any PII the LLM hallucinated in field values
-    const { card: piiScannedCard, piiSummary } = scanOutputPII(encryptedCard);
+    // Skip in RAG mode: the user explicitly provided their own document containing this data,
+    // so phone/email values are intentional and should not be masked.
+    const { card: piiScannedCard, piiSummary } = ragUsed
+      ? { card: encryptedCard, piiSummary: [] }
+      : scanOutputPII(encryptedCard);
     if (piiSummary.length > 0) {
       secureLog('output_pii_detected', {
         promptLength: sanitizedPrompt.length,
@@ -505,8 +540,18 @@ const generateDatacard = async (prompt, referenceText = '') => {
       });
     }
 
-    // Score completeness for logging
+    // Score completeness
     const completenessScore = scoreCompleteness(piiScannedCard);
+
+    // Faithfulness score (RAG only) — % of fields whose value is not "[More Information Needed]"
+    // A field marked [More Information Needed] means the LLM could not find it in the document.
+    // Fields with real values are considered faithfully grounded (the prompt forbids invention).
+    const faithfulnessScore = ragUsed && piiScannedCard.fields.length > 0
+      ? Math.round(
+          (piiScannedCard.fields.filter(f => f.value !== '[More Information Needed]').length
+            / piiScannedCard.fields.length) * 100
+        )
+      : null;
 
     // [5] Secure Logging (no PII — only metadata)
     secureLog('generate', {
@@ -518,14 +563,15 @@ const generateDatacard = async (prompt, referenceText = '') => {
       autoEncryptedCount,
       ...(ragUsed && { ragChunksUsed: retrievedContext.split('[Context ').length - 1 })
     });
-    console.log('[LLM-PIPELINE] completeness_score:', completenessScore, '| rag:', ragUsed);
+    console.log('[LLM-PIPELINE] completeness_score:', completenessScore, '| faithfulness_score:', faithfulnessScore, '| rag:', ragUsed, '| section:', section || 'full');
 
-    return { ...piiScannedCard, ragUsed };
+    return { ...piiScannedCard, ragUsed, completenessScore, faithfulnessScore, section: section || 'full' };
 
   } catch (error) {
     secureLog('generate_error', { promptLength: sanitizedPrompt.length, detectedPII, model: usedModel, outputValid: false, error: error.message, injectionCount });
     console.warn('Falling back to mock due to error:', error.message);
-    return { ...generateMockDatacard(sanitizedPrompt), ragUsed };
+    const mockCard = generateMockDatacard(sanitizedPrompt);
+    return { ...mockCard, ragUsed, completenessScore: scoreCompleteness(mockCard), faithfulnessScore: null };
   }
 };
 
@@ -618,4 +664,4 @@ const generateMockDatacard = (prompt) => {
   return { title, description, fields, template, tags: tags.length ? tags : ['general'] };
 };
 
-module.exports = { generateDatacard, sanitizePrompt, maskPII, SYSTEM_PROMPT, retrieveTopChunks };
+module.exports = { generateDatacard, sanitizePrompt, maskPII, SYSTEM_PROMPT, retrieveTopChunks, SECTION_INSTRUCTIONS };

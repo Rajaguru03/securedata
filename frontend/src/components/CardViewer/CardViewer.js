@@ -73,6 +73,36 @@ const CardViewer = () => {
     }
   };
 
+  const handleExportMarkdown = async () => {
+    try {
+      const response = await cardAPI.exportMarkdown(currentCard._id);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/markdown' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${currentCard.title.replace(/[^a-z0-9]/gi, '_')}_datacard.md`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+      toast.success('Markdown exported');
+    } catch {
+      toast.error('failed to export Markdown');
+    }
+  };
+
+  const handleExportJSON = async () => {
+    try {
+      const response = await cardAPI.exportJSON(currentCard._id);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${currentCard.title.replace(/[^a-z0-9]/gi, '_')}_datacard.json`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+      toast.success('JSON exported');
+    } catch {
+      toast.error('failed to export JSON');
+    }
+  };
+
   const handleOpenHistory = async () => {
     setShowHistoryPanel(true);
     if (history.length > 0) return; // already loaded
@@ -395,13 +425,40 @@ const CardViewer = () => {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="term-modal-backdrop" onClick={() => { setShowExportModal(false); setExportPassword(''); }} />
           <div className="flex min-h-full items-center justify-center p-4 relative z-50">
-            <TerminalCard title="export as PDF" className="w-full max-w-sm">
+            <TerminalCard title="export datacard" className="w-full max-w-sm">
               <button
                 onClick={() => { setShowExportModal(false); setExportPassword(''); setProtectWithPassword(false); }}
                 className="absolute top-3 right-3 text-term-muted hover:text-term-default transition-colors"
               >
                 <HiX className="w-4 h-4" />
               </button>
+
+              {/* Markdown & JSON quick exports */}
+              <div className="mb-5 space-y-2">
+                <p className="text-xs text-term-muted font-mono uppercase tracking-widest mb-2">standard formats</p>
+                <button
+                  onClick={handleExportMarkdown}
+                  className="w-full flex items-center justify-between p-3 border border-term-border hover:border-term-subtle transition-colors font-mono text-xs"
+                  style={{ borderRadius: '2px' }}
+                >
+                  <span className="text-term-default">markdown (.md)</span>
+                  <HiDownload className="w-4 h-4 text-term-muted" />
+                </button>
+                <button
+                  onClick={handleExportJSON}
+                  className="w-full flex items-center justify-between p-3 border border-term-border hover:border-term-subtle transition-colors font-mono text-xs"
+                  style={{ borderRadius: '2px' }}
+                >
+                  <span className="text-term-default">json (.json)</span>
+                  <HiDownload className="w-4 h-4 text-term-muted" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 my-4">
+                <div className="flex-1 h-px bg-term-border" />
+                <span className="text-xs font-mono text-term-muted">or export as PDF</span>
+                <div className="flex-1 h-px bg-term-border" />
+              </div>
 
               <form onSubmit={handleExportPDF} className="space-y-4">
                 {/* Password protection toggle */}

@@ -8,14 +8,16 @@ const { parseDocument } = require('../utils/documentParser');
  */
 const generateContent = async (req, res) => {
   try {
-    const { prompt, referenceText } = req.body;
+    const { prompt, referenceText, section } = req.body;
 
     // sanitizePrompt is applied inside generateDatacard (llmService.js)
     // referenceText is optional — when provided, RAG retrieval grounds the output
-    const generatedCard = await generateDatacard(prompt, referenceText || '');
+    // section is optional — when provided, the prompt is focused on a specific card section
+    const VALID_SECTIONS = ['contact', 'professional', 'academic', 'social', 'overview', 'full', ''];
+    const safeSection = VALID_SECTIONS.includes(section) ? section : '';
+    const generatedCard = await generateDatacard(prompt, referenceText || '', safeSection);
 
-    // Strip internal ragUsed flag from the card object before returning
-    const { ragUsed, ...cardData } = generatedCard;
+    const { ragUsed, completenessScore, faithfulnessScore, section: usedSection, ...cardData } = generatedCard;
 
     res.status(200).json({
       success: true,
@@ -23,7 +25,10 @@ const generateContent = async (req, res) => {
       data: {
         generated: cardData,
         generatedByLLM: true,
-        ragUsed: !!ragUsed
+        ragUsed: !!ragUsed,
+        completenessScore,
+        faithfulnessScore: ragUsed ? faithfulnessScore : null,
+        section: usedSection || 'full',
       }
     });
   } catch (error) {

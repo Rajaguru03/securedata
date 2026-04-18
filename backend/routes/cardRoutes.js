@@ -11,6 +11,8 @@ const {
   getSharedCard,
   getShareStats,
   exportCard,
+  exportMarkdown,
+  exportJSON,
   getCardHistory,
   getCardVersion
 } = require('../controllers/cardController');
@@ -40,8 +42,10 @@ router.post('/:id/share', objectIdValidation, generateShareLink);
 router.delete('/:id/share', objectIdValidation, revokeShareLink);
 router.get('/:id/share/stats', objectIdValidation, getShareStats);
 
-// Export as password-protected PDF
-router.post('/:id/export', objectIdValidation, exportCard);
+// Export formats
+router.post('/:id/export', objectIdValidation, exportCard);          // PDF (password-protected)
+router.get('/:id/export/markdown', objectIdValidation, exportMarkdown); // Markdown
+router.get('/:id/export/json', objectIdValidation, exportJSON);          // JSON
 
 // Version history
 router.get('/:id/history', objectIdValidation, getCardHistory);

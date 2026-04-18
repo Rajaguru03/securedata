@@ -16,6 +16,9 @@ const GenerateModal = ({ onClose, onGenerate }) => {
   const [templates, setTemplates] = useState([]);
   const [preview, setPreview] = useState(null);
   const [ragUsed, setRagUsed] = useState(false);
+  const [completenessScore, setCompletenessScore] = useState(null);
+  const [faithfulnessScore, setFaithfulnessScore] = useState(null);
+  const [section, setSection] = useState('full');
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -34,11 +37,13 @@ const GenerateModal = ({ onClose, onGenerate }) => {
       return;
     }
 
-    const result = await generateWithLLM(prompt, referenceText);
+    const result = await generateWithLLM(prompt, referenceText, section);
 
     if (result.success) {
       setPreview(result.data);
       setRagUsed(result.ragUsed || false);
+      setCompletenessScore(result.completenessScore ?? null);
+      setFaithfulnessScore(result.faithfulnessScore ?? null);
       toast.success(result.ragUsed ? 'rag-grounded content generated!' : 'content generated! review below.');
     } else {
       toast.error(result.error);
@@ -147,6 +152,40 @@ const GenerateModal = ({ onClose, onGenerate }) => {
                   <p className="mt-1 text-xs text-term-muted font-mono">
                     {prompt.length}/500 characters (minimum 10)
                   </p>
+                </div>
+
+                {/* Section Focus (GAP 2 — role-based prompting) */}
+                <div className="mt-4">
+                  <p className="text-xs text-term-muted font-mono uppercase tracking-widest mb-2">section focus</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { value: 'full', label: 'full card' },
+                      { value: 'contact', label: 'contact' },
+                      { value: 'professional', label: 'professional' },
+                      { value: 'academic', label: 'academic' },
+                      { value: 'social', label: 'social' },
+                      { value: 'overview', label: 'overview' },
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setSection(opt.value)}
+                        className={`py-1.5 px-2 text-xs font-mono border transition-colors ${
+                          section === opt.value
+                            ? 'border-primary text-primary bg-primary-muted'
+                            : 'border-term-border text-term-muted hover:border-term-subtle hover:text-term-default'
+                        }`}
+                        style={{ borderRadius: '2px' }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {section !== 'full' && (
+                    <p className="mt-1.5 text-xs font-mono text-term-muted">
+                      ↳ LLM will focus only on <span className="text-accent">{section}</span> fields
+                    </p>
+                  )}
                 </div>
 
                 {/* RAG Reference Document (optional) */}
@@ -267,12 +306,60 @@ const GenerateModal = ({ onClose, onGenerate }) => {
                   style={{ borderRadius: '2px' }}
                 >
                   + content generated! review below and click "apply" to use it.
+                  {section && section !== 'full' && (
+                    <span className="ml-2 text-accent">[section: {section}]</span>
+                  )}
                 </div>
 
                 {ragUsed && (
                   <div className="flex items-center gap-2 p-2 bg-ai-muted border border-ai font-mono text-xs text-ai" style={{ borderRadius: '2px' }}>
                     <span>◈</span>
                     <span>rag-grounded — field values sourced from your reference document</span>
+                  </div>
+                )}
+
+                {/* Gap 3: Completeness Score */}
+                {completenessScore !== null && (
+                  <div className="p-3 border border-term-border font-mono text-xs space-y-1.5" style={{ borderRadius: '2px' }}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-term-muted uppercase tracking-widest text-xs">completeness score</span>
+                      <span className={`font-bold text-sm ${completenessScore >= 75 ? 'text-primary' : completenessScore >= 50 ? 'text-warn' : 'text-danger'}`}>
+                        {completenessScore}/100
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-term-border" style={{ borderRadius: '1px' }}>
+                      <div
+                        className={`h-full transition-all ${completenessScore >= 75 ? 'bg-primary' : completenessScore >= 50 ? 'bg-warn' : 'bg-danger'}`}
+                        style={{ width: `${completenessScore}%`, borderRadius: '1px' }}
+                      />
+                    </div>
+                    <p className="text-term-muted text-xs">
+                      {completenessScore >= 75 ? 'well-structured card with all key fields populated'
+                        : completenessScore >= 50 ? 'card is usable but missing some fields'
+                        : 'card is incomplete — consider adding more detail to your prompt'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Gap 5: Faithfulness Score (RAG only) */}
+                {ragUsed && faithfulnessScore !== null && (
+                  <div className="p-3 border border-term-border font-mono text-xs space-y-1.5" style={{ borderRadius: '2px' }}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-term-muted uppercase tracking-widest text-xs">faithfulness score</span>
+                      <span className={`font-bold text-sm ${faithfulnessScore >= 75 ? 'text-primary' : faithfulnessScore >= 50 ? 'text-warn' : 'text-danger'}`}>
+                        {faithfulnessScore}%
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-term-border" style={{ borderRadius: '1px' }}>
+                      <div
+                        className={`h-full transition-all ${faithfulnessScore >= 75 ? 'bg-primary' : faithfulnessScore >= 50 ? 'bg-warn' : 'bg-danger'}`}
+                        style={{ width: `${faithfulnessScore}%`, borderRadius: '1px' }}
+                      />
+                    </div>
+                    <p className="text-term-muted text-xs">
+                      {faithfulnessScore}% of fields were found in your document —{' '}
+                      {100 - faithfulnessScore}% could not be located and are marked below
+                    </p>
                   </div>
                 )}
 
@@ -296,18 +383,31 @@ const GenerateModal = ({ onClose, onGenerate }) => {
                     fields ({preview.fields?.length || 0})
                   </p>
                   <div className="space-y-0">
-                    {preview.fields?.map((field, index) => (
-                      <div key={index} className="kv-row">
-                        <span className="kv-key">{field.label}</span>
-                        <span className="kv-value flex items-center gap-2">
-                          <span>{field.value || '—'}</span>
-                          <span className="text-term-muted text-xs">[{field.type}]</span>
-                          {field.encrypted && (
-                            <span className="badge-yellow text-xs">encrypted</span>
-                          )}
-                        </span>
-                      </div>
-                    ))}
+                    {preview.fields?.map((field, index) => {
+                      const isMissing = field.value === '[More Information Needed]';
+                      return (
+                        <div key={index} className={`kv-row ${isMissing ? 'opacity-60' : ''}`}>
+                          <span className="kv-key">{field.label}</span>
+                          <span className="kv-value flex items-center gap-2 flex-wrap">
+                            <span className={isMissing ? 'text-warn italic' : ''}>{field.value || '—'}</span>
+                            <span className="text-term-muted text-xs">[{field.type}]</span>
+                            {field.encrypted && (
+                              <span className="badge-yellow text-xs">encrypted</span>
+                            )}
+                            {ragUsed && !isMissing && (
+                              <span className="px-1 py-0.5 text-xs font-mono text-primary border border-primary border-opacity-40 bg-primary-muted" style={{ borderRadius: '2px' }}>
+                                sourced
+                              </span>
+                            )}
+                            {ragUsed && isMissing && (
+                              <span className="px-1 py-0.5 text-xs font-mono text-warn border border-warn border-opacity-40" style={{ borderRadius: '2px' }}>
+                                not in doc
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -332,7 +432,7 @@ const GenerateModal = ({ onClose, onGenerate }) => {
                 {/* Actions */}
                 <div className="flex space-x-3 pt-4">
                   <button
-                    onClick={() => { setPreview(null); setRagUsed(false); }}
+                    onClick={() => { setPreview(null); setRagUsed(false); setCompletenessScore(null); setFaithfulnessScore(null); setSection('full'); }}
                     className="flex-1 btn-secondary text-xs"
                   >
                     regenerate
