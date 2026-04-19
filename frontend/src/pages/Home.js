@@ -7,12 +7,12 @@ const features = [
   {
     tag: '[enc]',
     title: 'AES-256 Encryption',
-    description: 'Sensitive fields are encrypted with military-grade AES-256-GCM. Encrypted data stays hidden even in shared links.',
+    description: 'Sensitive fields are encrypted with military-grade AES-256-GCM. Encrypted data stays hidden in shared links, with per-field reveal/hide control in the viewer.',
   },
   {
-    tag: '[ai]',
-    title: 'AI-Powered Generation',
-    description: 'Use local AI (Ollama) to automatically generate datacard content from a natural language prompt — with PII masking and prompt injection protection built in.',
+    tag: '[rag]',
+    title: 'Document-Grounded AI',
+    description: 'Upload a PDF or text file and AI generates your card directly from it. Faithfulness scoring shows what % of values came from your document vs. hallucinated.',
   },
   {
     tag: '[log]',
@@ -30,9 +30,9 @@ const features = [
     description: 'Accounts lock after 5 failed login attempts. JWT access tokens expire in 15 minutes with secure httpOnly refresh token rotation.',
   },
   {
-    tag: '[pro]',
-    title: 'Profile & Analytics',
-    description: 'Track all your shared cards, total views, active links, and account stats from your profile dashboard.',
+    tag: '[ver]',
+    title: 'Version History',
+    description: 'Every card edit automatically creates a versioned snapshot. Roll back to any previous state and compare versions side-by-side with field-level diffs.',
   },
 ];
 
@@ -167,10 +167,11 @@ const Home = () => {
               </h2>
               <ul className="space-y-3">
                 {[
-                  'AES-256-GCM encryption for sensitive fields',
-                  'JWT-based authentication with bcrypt password hashing',
+                  'AES-256-GCM field-level encryption with per-field reveal/hide',
+                  'JWT authentication with bcrypt hashing and account lockout',
                   'Rate limiting and input validation on all endpoints',
-                  'Prompt injection defenses for AI features',
+                  'PII masking and prompt injection defence on all AI inputs',
+                  'RAG faithfulness scoring — grounded generation from uploaded documents',
                   'OWASP Top 10 security measures implemented',
                 ].map((item, i) => (
                   <li key={i} className="flex items-start space-x-3 font-mono text-sm">
