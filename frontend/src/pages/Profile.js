@@ -167,39 +167,6 @@ const Profile = () => {
           </div>
         </TerminalCard>
 
-        {/* GDPR: Delete Account */}
-        <TerminalCard title="danger-zone">
-          <div className="space-y-3">
-            <p className="font-mono text-xs text-term-muted">
-              permanently delete your account and all associated data (cards, versions, shares). this cannot be undone.
-            </p>
-            {!showDeleteAccount ? (
-              <button onClick={() => setShowDeleteAccount(true)} className="flex items-center gap-2 text-xs font-mono text-danger hover:underline">
-                <HiTrash className="w-3 h-3" /> delete my account
-              </button>
-            ) : (
-              <div className="space-y-3 border border-danger border-opacity-30 p-4" style={{ borderRadius: '2px' }}>
-                <label className="label text-danger">confirm password to delete account</label>
-                <input
-                  type="password"
-                  value={deletePassword}
-                  onChange={(e) => setDeletePassword(e.target.value)}
-                  className="input"
-                  placeholder="enter your password"
-                />
-                <div className="flex gap-2">
-                  <button onClick={handleDeleteAccount} disabled={deleteLoading || !deletePassword} className="flex-1 text-xs font-mono text-danger border border-danger border-opacity-50 py-2 hover:bg-danger hover:bg-opacity-10">
-                    {deleteLoading ? 'deleting...' : 'permanently delete'}
-                  </button>
-                  <button onClick={() => { setShowDeleteAccount(false); setDeletePassword(''); }} className="flex-1 text-xs font-mono text-term-muted hover:text-primary border border-term-border py-2">
-                    cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </TerminalCard>
-
         {/* Shared Cards */}
         <TerminalCard title="shared-datacards">
           {sharedCards.length === 0 ? (
@@ -278,6 +245,39 @@ const Profile = () => {
               ))}
             </div>
           )}
+        </TerminalCard>
+
+        {/* GDPR: Delete Account */}
+        <TerminalCard title="danger-zone">
+          <div className="space-y-3">
+            <p className="font-mono text-xs text-term-muted">
+              permanently delete your account and all associated data (cards, versions, shares). this cannot be undone.
+            </p>
+            {!showDeleteAccount ? (
+              <button onClick={() => setShowDeleteAccount(true)} className="flex items-center gap-2 text-xs font-mono text-danger hover:underline">
+                <HiTrash className="w-3 h-3" /> delete my account
+              </button>
+            ) : (
+              <div className="space-y-3 border border-danger border-opacity-30 p-4" style={{ borderRadius: '2px' }}>
+                <label className="label text-danger">confirm password to delete account</label>
+                <input
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  className="input"
+                  placeholder="enter your password"
+                />
+                <div className="flex gap-2">
+                  <button onClick={handleDeleteAccount} disabled={deleteLoading || !deletePassword} className="flex-1 text-xs font-mono text-danger border border-danger border-opacity-50 py-2 hover:bg-danger hover:bg-opacity-10">
+                    {deleteLoading ? 'deleting...' : 'permanently delete'}
+                  </button>
+                  <button onClick={() => { setShowDeleteAccount(false); setDeletePassword(''); }} className="flex-1 text-xs font-mono text-term-muted hover:text-primary border border-term-border py-2">
+                    cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </TerminalCard>
 
       </div>
