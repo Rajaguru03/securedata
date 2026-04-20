@@ -19,6 +19,24 @@ import {
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
+/** Convert ISO 3166-1 alpha-2 code to a flag emoji */
+const countryFlag = (code) => {
+  if (!code || code.length !== 2) return '🌐';
+  return code.toUpperCase().replace(/./g, c =>
+    String.fromCodePoint(c.charCodeAt(0) + 127397)
+  );
+};
+
+/** Best-effort human-readable country name from ISO code */
+const countryName = (code) => {
+  if (!code) return 'Unknown';
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'region' }).of(code.toUpperCase()) || code;
+  } catch {
+    return code;
+  }
+};
+
 const Divider = ({ label }) => (
   <div className="flex items-center gap-2 my-4">
     <span className="text-term-border font-mono text-xs">──</span>
@@ -601,22 +619,67 @@ const CardViewer = () => {
                       </div>
                     )}
 
+                    {/* Country breakdown */}
+                    {accessLog.countryBreakdown?.length > 0 && (
+                      <div>
+                        <p className="text-xs font-mono text-term-muted uppercase tracking-widest mb-2">viewers by country</p>
+                        <div className="space-y-1">
+                          {accessLog.countryBreakdown.map(c => (
+                            <div key={c.country} className="flex items-center justify-between font-mono text-xs">
+                              <span className="text-term-default">
+                                {countryFlag(c.country)} {countryName(c.country)}
+                              </span>
+                              <span className="text-term-muted">{c.count} view{c.count !== 1 ? 's' : ''}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* City breakdown */}
+                    {accessLog.cityBreakdown?.filter(c => c.city).length > 0 && (
+                      <div>
+                        <p className="text-xs font-mono text-term-muted uppercase tracking-widest mb-2">top cities</p>
+                        <div className="space-y-1">
+                          {accessLog.cityBreakdown.filter(c => c.city).map((c, i) => (
+                            <div key={i} className="flex items-center justify-between font-mono text-xs">
+                              <span className="text-term-default">
+                                {c.city}{c.country ? `, ${c.country}` : ''}
+                              </span>
+                              <span className="text-term-muted">{c.count} view{c.count !== 1 ? 's' : ''}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Recent views */}
                     {accessLog.recentViews?.length > 0 && (
                       <div>
                         <p className="text-xs font-mono text-term-muted uppercase tracking-widest mb-2">recent access events</p>
                         <div className="space-y-1">
                           {accessLog.recentViews.map((v, i) => (
-                            <div key={i} className="flex items-center justify-between p-2 border border-term-border font-mono text-xs" style={{ borderRadius: '2px' }}>
-                              <div className="flex items-center gap-2">
-                                <span className="text-term-default">{v.browser}</span>
-                                <span className="text-term-muted">·</span>
-                                <span className="text-term-muted">{v.deviceType}</span>
-                                {v.referrer && <span className="text-term-muted truncate max-w-24" title={v.referrer}>← {v.referrer}</span>}
+                            <div key={i} className="p-2 border border-term-border font-mono text-xs space-y-1" style={{ borderRadius: '2px' }}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-term-default">{v.browser}</span>
+                                  <span className="text-term-muted">·</span>
+                                  <span className="text-term-muted">{v.deviceType}</span>
+                                  {v.referrer && <span className="text-term-muted truncate max-w-24" title={v.referrer}>← {v.referrer}</span>}
+                                </div>
+                                <span className="text-term-muted shrink-0">
+                                  {new Date(v.viewedAt).toLocaleDateString()} {new Date(v.viewedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
                               </div>
-                              <span className="text-term-muted shrink-0">
-                                {new Date(v.viewedAt).toLocaleDateString()} {new Date(v.viewedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
+                              {(v.country || v.city) && (
+                                <div className="text-term-muted flex items-center gap-1">
+                                  <span>📍</span>
+                                  <span>
+                                    {[v.city, v.country ? countryName(v.country) : null].filter(Boolean).join(', ')}
+                                    {v.timezone ? ` (${v.timezone})` : ''}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
