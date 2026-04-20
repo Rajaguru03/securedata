@@ -491,13 +491,20 @@ const getSharedCard = async (req, res) => {
     }
 
     // Record this view (fire-and-forget — don't let tracking errors break the response)
-    const rawIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    // X-Forwarded-For is the real client IP when behind Render's load balancer.
+    // Take the first (leftmost) address — that's the original client.
+    const forwardedFor = req.headers['x-forwarded-for'];
+    const rawIp = (forwardedFor ? forwardedFor.split(',')[0].trim() : null)
+      || req.ip
+      || req.connection?.remoteAddress
+      || 'unknown';
     const ua = req.headers['user-agent'] || 'unknown';
     setImmediate(async () => {
       try {
         // Geo lookup — strips any IPv4-mapped IPv6 prefix (::ffff:) before lookup
         const cleanIp = rawIp.replace(/^::ffff:/, '');
         const geo = geoip.lookup(cleanIp);
+        console.log('[GEO-DEBUG] rawIp:', rawIp, '| cleanIp:', cleanIp, '| geo:', geo);
 
         await ShareView.create({
           cardId: datacard._id,
