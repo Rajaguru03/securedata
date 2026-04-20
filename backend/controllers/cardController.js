@@ -5,6 +5,7 @@ const { encrypt, decrypt } = require('../utils/encryption');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const PDFDocument = require('pdfkit');
+const geoip = require('geoip-lite');
 const { logCardEvent } = require('../middleware/auditLogger');
 
 /**
@@ -494,13 +495,20 @@ const getSharedCard = async (req, res) => {
     const ua = req.headers['user-agent'] || 'unknown';
     setImmediate(async () => {
       try {
+        // Geo lookup — strips any IPv4-mapped IPv6 prefix (::ffff:) before lookup
+        const cleanIp = rawIp.replace(/^::ffff:/, '');
+        const geo = geoip.lookup(cleanIp);
+
         await ShareView.create({
           cardId: datacard._id,
           ipHash: ShareView.hashIp(rawIp),
           userAgent: ua.substring(0, 500),
           deviceType: ShareView.parseDeviceType(ua),
           browser: ShareView.parseBrowser(ua),
-          referrer: (req.headers['referer'] || req.headers['referrer'] || '').substring(0, 500) || null
+          referrer: (req.headers['referer'] || req.headers['referrer'] || '').substring(0, 500) || null,
+          country:  geo?.country  || null,
+          city:     geo?.city     || null,
+          timezone: geo?.timezone || null
         });
         await Datacard.updateOne(
           { _id: datacard._id },
@@ -596,11 +604,29 @@ const getShareStats = async (req, res) => {
       { $sort: { count: -1 } }
     ]);
 
+    // ── Country breakdown ─────────────────────────────────────────────────────
+    const countryBreakdown = await ShareView.aggregate([
+      { $match: { cardId, country: { $ne: null } } },
+      { $group: { _id: '$country', count: { $sum: 1 } } },
+      { $project: { _id: 0, country: '$_id', count: 1 } },
+      { $sort: { count: -1 } },
+      { $limit: 20 }
+    ]);
+
+    // ── City breakdown (top 10) ───────────────────────────────────────────────
+    const cityBreakdown = await ShareView.aggregate([
+      { $match: { cardId, city: { $ne: null }, city: { $ne: '' } } },
+      { $group: { _id: { city: '$city', country: '$country' }, count: { $sum: 1 } } },
+      { $project: { _id: 0, city: '$_id.city', country: '$_id.country', count: 1 } },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]);
+
     // ── Recent views (last 10, no raw IP) ────────────────────────────────────
     const recentViews = await ShareView.find({ cardId })
       .sort({ viewedAt: -1 })
       .limit(10)
-      .select('deviceType browser referrer viewedAt -_id');
+      .select('deviceType browser referrer country city timezone viewedAt -_id');
 
     res.status(200).json({
       success: true,
@@ -614,6 +640,8 @@ const getShareStats = async (req, res) => {
         lastViewedAt: datacard.lastViewedAt,
         viewsByDay,
         deviceBreakdown,
+        countryBreakdown,
+        cityBreakdown,
         recentViews
       }
     });

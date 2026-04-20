@@ -17,7 +17,7 @@ const generateContent = async (req, res) => {
     const safeSection = VALID_SECTIONS.includes(section) ? section : '';
     const generatedCard = await generateDatacard(prompt, referenceText || '', safeSection);
 
-    const { ragUsed, completenessScore, faithfulnessScore, section: usedSection, ...cardData } = generatedCard;
+    const { ragUsed, completenessScore, faithfulnessScore, section: usedSection, suggestions, ...cardData } = generatedCard;
 
     res.status(200).json({
       success: true,
@@ -29,6 +29,7 @@ const generateContent = async (req, res) => {
         completenessScore,
         faithfulnessScore: ragUsed ? faithfulnessScore : null,
         section: usedSection || 'full',
+        suggestions: suggestions || [],
       }
     });
   } catch (error) {

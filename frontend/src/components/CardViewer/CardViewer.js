@@ -15,6 +15,7 @@ import {
   HiEye,
   HiEyeOff,
   HiClock,
+  HiClipboardList,
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
@@ -41,6 +42,15 @@ const CardViewer = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [versionLoading, setVersionLoading] = useState(false);
+  // Comparison state
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareSelections, setCompareSelections] = useState([]);  // max 2 version numbers
+  const [compareVersions, setCompareVersions] = useState(null);   // { v1, v2 } full version objects
+  const [compareLoading, setCompareLoading] = useState(false);
+  // Access log state
+  const [showAccessLog, setShowAccessLog] = useState(false);
+  const [accessLog, setAccessLog] = useState(null);
+  const [accessLogLoading, setAccessLogLoading] = useState(false);
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -129,6 +139,45 @@ const CardViewer = () => {
     }
   };
 
+  // Toggle a version in the compare selection (max 2)
+  const handleToggleCompare = (version) => {
+    setCompareSelections(prev => {
+      if (prev.includes(version)) return prev.filter(v => v !== version);
+      if (prev.length >= 2) return [prev[1], version];
+      return [...prev, version];
+    });
+  };
+
+  const handleCompare = async () => {
+    if (compareSelections.length !== 2) return;
+    setCompareLoading(true);
+    try {
+      const [r1, r2] = await Promise.all([
+        cardAPI.getVersion(id, Math.min(...compareSelections)),
+        cardAPI.getVersion(id, Math.max(...compareSelections)),
+      ]);
+      setCompareVersions({ v1: r1.data.data.version, v2: r2.data.data.version });
+    } catch {
+      toast.error('failed to load versions for comparison');
+    } finally {
+      setCompareLoading(false);
+    }
+  };
+
+  const handleOpenAccessLog = async () => {
+    setShowAccessLog(true);
+    if (accessLog) return;
+    setAccessLogLoading(true);
+    try {
+      const res = await cardAPI.getShareStats(id);
+      setAccessLog(res.data.data);
+    } catch {
+      toast.error('failed to load access log');
+    } finally {
+      setAccessLogLoading(false);
+    }
+  };
+
   if (loading && !currentCard) {
     return (
       <div className="flex justify-center py-12">
@@ -177,6 +226,14 @@ const CardViewer = () => {
                 v{currentCard.currentVersion}
               </span>
             )}
+          </button>
+          <button
+            onClick={handleOpenAccessLog}
+            className="btn-secondary flex items-center space-x-1 text-xs"
+            title="access log"
+          >
+            <HiClipboardList className="w-4 h-4" />
+            <span className="hidden sm:inline">access log</span>
           </button>
           <button
             onClick={() => setShowExportModal(true)}
@@ -366,20 +423,54 @@ const CardViewer = () => {
                     <p className="mt-1">versions are saved automatically on every edit.</p>
                   </div>
                 ) : (
-                  <div className="space-y-1">
-                    <p className="text-xs text-term-muted font-mono mb-3">
-                      {history.length} saved version{history.length !== 1 ? 's' : ''} · click to inspect
-                    </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-term-muted font-mono">
+                        {history.length} saved version{history.length !== 1 ? 's' : ''}
+                      </p>
+                      {history.length >= 2 && (
+                        <button
+                          onClick={() => { setCompareMode(v => !v); setCompareSelections([]); setCompareVersions(null); }}
+                          className={`text-xs font-mono px-2 py-1 border transition-colors ${compareMode ? 'border-primary text-primary' : 'border-term-border text-term-muted hover:border-term-subtle'}`}
+                          style={{ borderRadius: '2px' }}
+                        >
+                          {compareMode ? 'cancel compare' : 'compare versions'}
+                        </button>
+                      )}
+                    </div>
+
+                    {compareMode && (
+                      <div className="p-2 bg-term-base border border-term-border font-mono text-xs text-term-muted mb-2" style={{ borderRadius: '2px' }}>
+                        select 2 versions to compare · {compareSelections.length}/2 selected
+                        {compareSelections.length === 2 && (
+                          <button
+                            onClick={handleCompare}
+                            disabled={compareLoading}
+                            className="ml-3 text-primary hover:underline"
+                          >
+                            {compareLoading ? 'loading...' : 'compare →'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     {history.map((entry) => (
                       <button
                         key={entry.version}
-                        onClick={() => handleLoadVersion(entry.version)}
-                        disabled={versionLoading}
-                        className="w-full text-left p-3 border border-term-border hover:border-term-subtle bg-term-base transition-colors font-mono"
+                        onClick={() => compareMode ? handleToggleCompare(entry.version) : handleLoadVersion(entry.version)}
+                        disabled={versionLoading || compareLoading}
+                        className={`w-full text-left p-3 border bg-term-base transition-colors font-mono ${
+                          compareSelections.includes(entry.version)
+                            ? 'border-primary'
+                            : 'border-term-border hover:border-term-subtle'
+                        }`}
                         style={{ borderRadius: '2px' }}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
+                            {compareMode && (
+                              <span className={`w-3 h-3 border flex-shrink-0 ${compareSelections.includes(entry.version) ? 'bg-primary border-primary' : 'border-term-border'}`} style={{ borderRadius: '2px' }} />
+                            )}
                             <span className="text-xs text-term-muted">v{entry.version}</span>
                             <span className="text-xs text-term-default">{entry.title}</span>
                           </div>
@@ -392,6 +483,149 @@ const CardViewer = () => {
                         )}
                       </button>
                     ))}
+                  </div>
+                )}
+              </div>
+            </TerminalCard>
+          </div>
+        </div>
+      )}
+
+      {/* Compare View Modal */}
+      {compareVersions && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="term-modal-backdrop" onClick={() => setCompareVersions(null)} />
+          <div className="flex min-h-full items-center justify-center p-4 relative z-50">
+            <TerminalCard title={`compare v${compareVersions.v1.version} → v${compareVersions.v2.version}`} className="w-full max-w-3xl max-h-[85vh] overflow-hidden">
+              <button onClick={() => setCompareVersions(null)} className="absolute top-3 right-3 text-term-muted hover:text-term-default">
+                <HiX className="w-4 h-4" />
+              </button>
+              <div className="overflow-y-auto max-h-[calc(85vh-120px)]">
+                {/* Header row */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="p-2 bg-term-base border border-term-border font-mono text-xs text-term-muted" style={{ borderRadius: '2px' }}>
+                    v{compareVersions.v1.version} · {new Date(compareVersions.v1.savedAt).toLocaleString()}
+                  </div>
+                  <div className="p-2 bg-term-base border border-primary font-mono text-xs text-primary" style={{ borderRadius: '2px' }}>
+                    v{compareVersions.v2.version} · {new Date(compareVersions.v2.savedAt).toLocaleString()}
+                  </div>
+                </div>
+
+                {/* Title diff */}
+                {compareVersions.v1.title !== compareVersions.v2.title && (
+                  <div className="mb-3">
+                    <p className="text-xs font-mono text-term-muted uppercase tracking-widest mb-1">title</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-2 bg-danger bg-opacity-10 border border-danger border-opacity-30 font-mono text-xs text-danger" style={{ borderRadius: '2px' }}>− {compareVersions.v1.title}</div>
+                      <div className="p-2 bg-primary-muted border border-primary-dim font-mono text-xs text-primary" style={{ borderRadius: '2px' }}>+ {compareVersions.v2.title}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Fields diff */}
+                <p className="text-xs font-mono text-term-muted uppercase tracking-widest mb-2">fields</p>
+                {(() => {
+                  const v1Fields = compareVersions.v1.fields || [];
+                  const v2Fields = compareVersions.v2.fields || [];
+                  const allLabels = [...new Set([...v1Fields.map(f => f.label), ...v2Fields.map(f => f.label)])];
+                  return allLabels.map(label => {
+                    const f1 = v1Fields.find(f => f.label === label);
+                    const f2 = v2Fields.find(f => f.label === label);
+                    const changed = f1?.value !== f2?.value;
+                    const added = !f1 && f2;
+                    const removed = f1 && !f2;
+                    return (
+                      <div key={label} className={`mb-2 grid grid-cols-2 gap-3 ${!changed && !added && !removed ? 'opacity-40' : ''}`}>
+                        <div className={`p-2 font-mono text-xs border ${removed ? 'bg-danger bg-opacity-10 border-danger border-opacity-30 text-danger' : 'border-term-border text-term-default'}`} style={{ borderRadius: '2px' }}>
+                          <span className="text-term-muted block text-xs mb-0.5">{label}</span>
+                          {f1 ? (removed ? <span>− {f1.value || '—'}</span> : f1.value || '—') : <span className="text-term-muted italic">not present</span>}
+                        </div>
+                        <div className={`p-2 font-mono text-xs border ${added ? 'bg-primary-muted border-primary-dim text-primary' : changed ? 'bg-primary-muted border-primary-dim text-primary' : 'border-term-border text-term-default'}`} style={{ borderRadius: '2px' }}>
+                          <span className="text-term-muted block text-xs mb-0.5">{label}</span>
+                          {f2 ? (added ? <span>+ {f2.value || '—'}</span> : f2.value || '—') : <span className="text-term-muted italic">not present</span>}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </TerminalCard>
+          </div>
+        </div>
+      )}
+
+      {/* Access Log Modal */}
+      {showAccessLog && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="term-modal-backdrop" onClick={() => setShowAccessLog(false)} />
+          <div className="flex min-h-full items-center justify-center p-4 relative z-50">
+            <TerminalCard title="access log" className="w-full max-w-lg max-h-[80vh] overflow-hidden">
+              <button onClick={() => setShowAccessLog(false)} className="absolute top-3 right-3 text-term-muted hover:text-term-default">
+                <HiX className="w-4 h-4" />
+              </button>
+              <div className="overflow-y-auto max-h-[calc(80vh-120px)]">
+                {accessLogLoading ? (
+                  <div className="flex justify-center py-8"><LoadingSpinner size="sm" text="loading access log..." /></div>
+                ) : !accessLog ? (
+                  <p className="text-xs font-mono text-term-muted text-center py-8">no data available</p>
+                ) : !accessLog.shareActive ? (
+                  <p className="text-xs font-mono text-term-muted text-center py-8">this card has no active share link — access log is only recorded for shared cards</p>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Summary stats */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'total views', value: accessLog.totalViews },
+                        { label: 'unique visitors', value: accessLog.uniqueVisitors },
+                        { label: 'last viewed', value: accessLog.lastViewedAt ? new Date(accessLog.lastViewedAt).toLocaleDateString() : '—' },
+                      ].map(s => (
+                        <div key={s.label} className="p-3 border border-term-border text-center font-mono" style={{ borderRadius: '2px' }}>
+                          <div className="text-lg font-bold text-accent">{s.value}</div>
+                          <div className="text-xs text-term-muted mt-0.5">{s.label}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Device breakdown */}
+                    {accessLog.deviceBreakdown?.length > 0 && (
+                      <div>
+                        <p className="text-xs font-mono text-term-muted uppercase tracking-widest mb-2">device breakdown</p>
+                        <div className="space-y-1">
+                          {accessLog.deviceBreakdown.map(d => (
+                            <div key={d.device} className="flex items-center justify-between font-mono text-xs">
+                              <span className="text-term-default">{d.device}</span>
+                              <span className="text-term-muted">{d.count} view{d.count !== 1 ? 's' : ''}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recent views */}
+                    {accessLog.recentViews?.length > 0 && (
+                      <div>
+                        <p className="text-xs font-mono text-term-muted uppercase tracking-widest mb-2">recent access events</p>
+                        <div className="space-y-1">
+                          {accessLog.recentViews.map((v, i) => (
+                            <div key={i} className="flex items-center justify-between p-2 border border-term-border font-mono text-xs" style={{ borderRadius: '2px' }}>
+                              <div className="flex items-center gap-2">
+                                <span className="text-term-default">{v.browser}</span>
+                                <span className="text-term-muted">·</span>
+                                <span className="text-term-muted">{v.deviceType}</span>
+                                {v.referrer && <span className="text-term-muted truncate max-w-24" title={v.referrer}>← {v.referrer}</span>}
+                              </div>
+                              <span className="text-term-muted shrink-0">
+                                {new Date(v.viewedAt).toLocaleDateString()} {new Date(v.viewedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {accessLog.totalViews === 0 && (
+                      <p className="text-xs font-mono text-term-muted text-center py-4">no views yet — share the link to start tracking</p>
+                    )}
                   </div>
                 )}
               </div>

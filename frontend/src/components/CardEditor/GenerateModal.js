@@ -19,6 +19,7 @@ const GenerateModal = ({ onClose, onGenerate }) => {
   const [completenessScore, setCompletenessScore] = useState(null);
   const [faithfulnessScore, setFaithfulnessScore] = useState(null);
   const [section, setSection] = useState('full');
+  const [suggestions, setSuggestions] = useState([]);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -44,6 +45,7 @@ const GenerateModal = ({ onClose, onGenerate }) => {
       setRagUsed(result.ragUsed || false);
       setCompletenessScore(result.completenessScore ?? null);
       setFaithfulnessScore(result.faithfulnessScore ?? null);
+      setSuggestions(result.suggestions || []);
       toast.success(result.ragUsed ? 'rag-grounded content generated!' : 'content generated! review below.');
     } else {
       toast.error(result.error);
@@ -363,6 +365,23 @@ const GenerateModal = ({ onClose, onGenerate }) => {
                   </div>
                 )}
 
+                {/* Completeness Suggestions */}
+                {suggestions.length > 0 && (
+                  <div className="p-3 border border-warn border-opacity-40 font-mono text-xs space-y-2" style={{ borderRadius: '2px' }}>
+                    <p className="text-warn uppercase tracking-widest text-xs">suggested additions</p>
+                    <p className="text-term-muted">the following fields would improve this card's completeness:</p>
+                    <div className="space-y-1">
+                      {suggestions.map((s, i) => (
+                        <div key={i} className="flex items-center justify-between gap-2">
+                          <span className="text-term-default">+ {s.label}</span>
+                          <span className="text-term-muted text-xs">{s.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-term-muted text-xs mt-1">add these to your prompt and regenerate for a higher score</p>
+                  </div>
+                )}
+
                 {/* Title */}
                 <div className="kv-row">
                   <span className="kv-key">title</span>
@@ -432,7 +451,7 @@ const GenerateModal = ({ onClose, onGenerate }) => {
                 {/* Actions */}
                 <div className="flex space-x-3 pt-4">
                   <button
-                    onClick={() => { setPreview(null); setRagUsed(false); setCompletenessScore(null); setFaithfulnessScore(null); setSection('full'); }}
+                    onClick={() => { setPreview(null); setRagUsed(false); setCompletenessScore(null); setFaithfulnessScore(null); setSection('full'); setSuggestions([]); }}
                     className="flex-1 btn-secondary text-xs"
                   >
                     regenerate

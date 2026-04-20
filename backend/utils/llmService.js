@@ -360,6 +360,92 @@ const scoreCompleteness = (card) => {
 };
 
 
+// Field groups used for completeness suggestions (mirrors paper's section-based evaluation)
+const FIELD_SUGGESTION_GROUPS = {
+  contact:      [
+    { label: 'Full Name',  type: 'text',     reason: 'core identity field' },
+    { label: 'Email',      type: 'email',    reason: 'primary contact method' },
+    { label: 'Phone',      type: 'phone',    reason: 'secondary contact method' },
+    { label: 'Location',   type: 'text',     reason: 'geographic context' },
+    { label: 'Address',    type: 'textarea', reason: 'physical location detail' },
+  ],
+  professional: [
+    { label: 'Job Title',  type: 'text',     reason: 'role identification' },
+    { label: 'Company',    type: 'text',     reason: 'organisational context' },
+    { label: 'Skills',     type: 'textarea', reason: 'competency overview' },
+    { label: 'LinkedIn',   type: 'url',      reason: 'professional online presence' },
+    { label: 'Experience', type: 'textarea', reason: 'career summary' },
+  ],
+  academic:     [
+    { label: 'University',       type: 'text', reason: 'institution identification' },
+    { label: 'Degree',           type: 'text', reason: 'qualification level' },
+    { label: 'Field of Study',   type: 'text', reason: 'academic focus' },
+    { label: 'Graduation Year',  type: 'text', reason: 'timeline reference' },
+    { label: 'GPA',              type: 'text', reason: 'academic performance metric' },
+  ],
+  social:       [
+    { label: 'LinkedIn',  type: 'url', reason: 'professional network' },
+    { label: 'GitHub',    type: 'url', reason: 'code portfolio' },
+    { label: 'Website',   type: 'url', reason: 'personal or portfolio site' },
+    { label: 'Twitter',   type: 'url', reason: 'public social presence' },
+  ],
+  general:      [
+    { label: 'Description', type: 'textarea', reason: 'summary information' },
+    { label: 'Tags',        type: 'text',     reason: 'categorisation' },
+    { label: 'Website',     type: 'url',      reason: 'online reference' },
+  ],
+};
+
+// Keywords that signal which group a card belongs to (checked against existing field labels)
+const GROUP_SIGNALS = {
+  contact:      ['name', 'email', 'phone', 'address', 'location', 'contact'],
+  professional: ['job', 'title', 'company', 'skill', 'experience', 'role', 'employer', 'career'],
+  academic:     ['university', 'degree', 'gpa', 'course', 'graduation', 'study', 'education', 'college'],
+  social:       ['linkedin', 'github', 'twitter', 'website', 'portfolio', 'instagram'],
+};
+
+/**
+ * Suggest fields that would improve the card's completeness.
+ * Detects the card's likely type from existing field labels, then returns
+ * up to 4 relevant fields that are absent — matching the paper's section-based evaluation.
+ *
+ * @param {object} card - validated card object
+ * @returns {Array<{ label, type, reason }>}
+ */
+const suggestMissingFields = (card) => {
+  if (!Array.isArray(card.fields)) return [];
+
+  const existingLabels = new Set(
+    card.fields.map(f => f.label.toLowerCase())
+  );
+
+  // Detect which groups are signalled by current fields
+  const groupScores = {};
+  for (const [group, keywords] of Object.entries(GROUP_SIGNALS)) {
+    const hits = keywords.filter(kw =>
+      [...existingLabels].some(label => label.includes(kw))
+    ).length;
+    if (hits > 0) groupScores[group] = hits;
+  }
+
+  // Pick top-scoring group; fall back to general
+  const detectedGroup = Object.keys(groupScores).sort(
+    (a, b) => groupScores[b] - groupScores[a]
+  )[0] || 'general';
+
+  const candidates = [
+    ...(FIELD_SUGGESTION_GROUPS[detectedGroup] || []),
+    ...FIELD_SUGGESTION_GROUPS.general,
+  ];
+
+  // Return missing fields (up to 4)
+  return candidates
+    .filter(candidate =>
+      !existingLabels.has(candidate.label.toLowerCase())
+    )
+    .slice(0, 4);
+};
+
 /**
  * Call the local Ollama model and return the raw text response.
  * @param {string} systemPrompt
@@ -563,15 +649,19 @@ const generateDatacard = async (prompt, referenceText = '', section = '') => {
       autoEncryptedCount,
       ...(ragUsed && { ragChunksUsed: retrievedContext.split('[Context ').length - 1 })
     });
-    console.log('[LLM-PIPELINE] completeness_score:', completenessScore, '| faithfulness_score:', faithfulnessScore, '| rag:', ragUsed, '| section:', section || 'full');
+    // Completeness suggestions — fields present in the detected card type but absent from this card
+    const suggestions = completenessScore < 100 ? suggestMissingFields(piiScannedCard) : [];
 
-    return { ...piiScannedCard, ragUsed, completenessScore, faithfulnessScore, section: section || 'full' };
+    console.log('[LLM-PIPELINE] completeness_score:', completenessScore, '| faithfulness_score:', faithfulnessScore, '| rag:', ragUsed, '| section:', section || 'full', '| suggestions:', suggestions.length);
+
+    return { ...piiScannedCard, ragUsed, completenessScore, faithfulnessScore, section: section || 'full', suggestions };
 
   } catch (error) {
     secureLog('generate_error', { promptLength: sanitizedPrompt.length, detectedPII, model: usedModel, outputValid: false, error: error.message, injectionCount });
     console.warn('Falling back to mock due to error:', error.message);
     const mockCard = generateMockDatacard(sanitizedPrompt);
-    return { ...mockCard, ragUsed, completenessScore: scoreCompleteness(mockCard), faithfulnessScore: null };
+    const mockScore = scoreCompleteness(mockCard);
+    return { ...mockCard, ragUsed, completenessScore: mockScore, faithfulnessScore: null, section: section || 'full', suggestions: suggestMissingFields(mockCard) };
   }
 };
 

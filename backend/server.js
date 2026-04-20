@@ -80,10 +80,11 @@ app.use((req, res, next) => {
 });
 
 
-// Rate limiting (disabled during tests to prevent Jest runs from exhausting limits)
+// Rate limiting (disabled during tests; skipped for localhost in development)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: process.env.NODE_ENV === 'test' ? 10000 : 100,
+  skip: (req) => process.env.NODE_ENV === 'development' && (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1'),
   message: { error: 'Too many requests, please try again later.' },
   handler: (req, res, next, options) => {
     logSecurityEvent('rate_limit_hit', req, { limit: options.max });

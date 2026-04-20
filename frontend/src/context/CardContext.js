@@ -173,7 +173,7 @@ export const CardProvider = ({ children }) => {
       if (referenceText.trim()) payload.referenceText = referenceText;
       if (section && section !== 'full') payload.section = section;
       const response = await llmAPI.generate(payload);
-      const { generated, ragUsed, completenessScore, faithfulnessScore, section: usedSection } = response.data.data;
+      const { generated, ragUsed, completenessScore, faithfulnessScore, section: usedSection, suggestions } = response.data.data;
       return {
         success: true,
         data: generated,
@@ -181,6 +181,7 @@ export const CardProvider = ({ children }) => {
         completenessScore: completenessScore ?? null,
         faithfulnessScore: faithfulnessScore ?? null,
         section: usedSection || 'full',
+        suggestions: suggestions || [],
       };
     } catch (err) {
       const message = err.response?.data?.error || 'Failed to generate content';

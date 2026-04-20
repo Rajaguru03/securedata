@@ -34,6 +34,22 @@ const shareViewSchema = new mongoose.Schema({
     maxlength: 500,
     default: null
   },
+  // Geolocation derived from IP at view time (offline lookup — no raw IP stored)
+  country: {
+    type: String,
+    maxlength: 2,   // ISO 3166-1 alpha-2, e.g. "GB"
+    default: null
+  },
+  city: {
+    type: String,
+    maxlength: 100,
+    default: null
+  },
+  timezone: {
+    type: String,
+    maxlength: 60,  // e.g. "Europe/London"
+    default: null
+  },
   viewedAt: {
     type: Date,
     default: Date.now,
