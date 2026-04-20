@@ -21,6 +21,10 @@ const adminRoutes = require('./routes/adminRoutes');
 const app = express();
 app.disable('etag'); // Prevent ETag generation — avoids timing/info leakage on API responses
 
+// Trust Render's load balancer so req.ip returns the real client IP
+// (without this, req.ip is the proxy's internal IP and geoip lookup returns null)
+app.set('trust proxy', 1);
+
 // Database connection status
 let dbConnected = false;
 
