@@ -260,13 +260,27 @@ const CardViewer = () => {
             <HiDownload className="w-4 h-4" />
             <span className="hidden sm:inline">export</span>
           </button>
-          <button
-            onClick={() => setShowShareModal(true)}
-            className="btn-secondary flex items-center space-x-1 text-xs"
-          >
-            <HiShare className="w-4 h-4" />
-            <span className="hidden sm:inline">share</span>
-          </button>
+          {currentCard.visibility === 'public' ? (
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                toast.success('public link copied');
+              }}
+              className="btn-secondary flex items-center space-x-1 text-xs"
+              title="card is public — copy direct link"
+            >
+              <HiShare className="w-4 h-4" />
+              <span className="hidden sm:inline">copy link</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="btn-secondary flex items-center space-x-1 text-xs"
+            >
+              <HiShare className="w-4 h-4" />
+              <span className="hidden sm:inline">share</span>
+            </button>
+          )}
           <Link
             to={`/cards/${id}/edit`}
             className="btn-primary flex items-center space-x-1 text-xs"
