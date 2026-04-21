@@ -247,7 +247,7 @@ const getProfile = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        user: { id: user._id, name: user.name, email: user.email, createdAt: user.createdAt, twoFactorEnabled: user.twoFactorEnabled },
+        user: { id: user._id, name: user.name, email: user.email, createdAt: user.createdAt },
         stats: { totalCards, totalShared: sharedCards.length, activeShared: activeShared.length, totalViews },
         sharedCards: sharedCards.map(c => ({
           id: c._id,

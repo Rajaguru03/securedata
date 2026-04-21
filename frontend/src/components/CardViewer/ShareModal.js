@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useCards } from '../../context/CardContext';
 import LoadingSpinner from '../Common/LoadingSpinner';
 import TerminalCard from '../Common/TerminalCard';
-import { cardAPI } from '../../services/api';
-import { HiX, HiClipboardCopy, HiCheck, HiTrash, HiChartBar, HiLink, HiLockClosed } from 'react-icons/hi';
+import { HiX, HiClipboardCopy, HiCheck, HiTrash, HiLockClosed } from 'react-icons/hi';
+
 import toast from 'react-hot-toast';
 
 const ShareModal = ({ cardId, cardTitle, existingShareToken, existingShareExpiry, onClose }) => {
   const { generateShareLink, revokeShareLink } = useCards();
-  const [tab, setTab] = useState('link'); // 'link' | 'stats'
   const [shareData, setShareData] = useState(null);
   const [expiryDays, setExpiryDays] = useState(7);
   const [expiryPreset, setExpiryPreset] = useState('7');
@@ -17,27 +16,8 @@ const ShareModal = ({ cardId, cardTitle, existingShareToken, existingShareExpiry
   const [copied, setCopied] = useState(false);
   const [revoked, setRevoked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [stats, setStats] = useState(null);
-  const [statsLoading, setStatsLoading] = useState(false);
-
   const hasActiveLink = !revoked && existingShareToken &&
     (!existingShareExpiry || new Date(existingShareExpiry) > new Date());
-
-  const fetchStats = useCallback(async () => {
-    setStatsLoading(true);
-    try {
-      const res = await cardAPI.getShareStats(cardId);
-      setStats(res.data.data);
-    } catch {
-      toast.error('failed to load stats');
-    } finally {
-      setStatsLoading(false);
-    }
-  }, [cardId]);
-
-  useEffect(() => {
-    if (tab === 'stats') fetchStats();
-  }, [tab, fetchStats]);
 
   const handleGenerateLink = async () => {
     setSubmitting(true);
@@ -95,35 +75,6 @@ const ShareModal = ({ cardId, cardTitle, existingShareToken, existingShareExpiry
             <HiX className="w-4 h-4" />
           </button>
 
-          {/* Tab bar */}
-          <div className="flex space-x-1 mb-5 border-b border-term-border pb-2">
-            <button
-              onClick={() => setTab('link')}
-              className={`flex items-center space-x-1 px-3 py-1 font-mono text-xs transition-colors ${
-                tab === 'link'
-                  ? 'text-primary border-b-2 border-primary -mb-2'
-                  : 'text-term-muted hover:text-term-default'
-              }`}
-            >
-              <HiLink className="w-3 h-3" />
-              <span>link</span>
-            </button>
-            <button
-              onClick={() => setTab('stats')}
-              className={`flex items-center space-x-1 px-3 py-1 font-mono text-xs transition-colors ${
-                tab === 'stats'
-                  ? 'text-primary border-b-2 border-primary -mb-2'
-                  : 'text-term-muted hover:text-term-default'
-              }`}
-            >
-              <HiChartBar className="w-3 h-3" />
-              <span>stats</span>
-            </button>
-          </div>
-
-          {/* ── LINK TAB ── */}
-          {tab === 'link' && (
-            <>
               <p className="text-term-muted font-mono text-xs mb-5">
                 generate a shareable link for{' '}
                 <span className="text-term-default">"{cardTitle}"</span>.
@@ -179,8 +130,6 @@ const ShareModal = ({ cardId, cardTitle, existingShareToken, existingShareExpiry
                       <option value="0">No Limit</option>
                       <option value="1">1 day</option>
                       <option value="7">7 days</option>
-                      {/* <option value="14">14 days</option> */}
-                      {/* <option value="30">30 days</option> */}
                       <option value="custom">Custom</option>
                     </select>
                     {expiryPreset === 'custom' && (
@@ -306,118 +255,6 @@ const ShareModal = ({ cardId, cardTitle, existingShareToken, existingShareExpiry
                   </div>
                 </div>
               )}
-            </>
-          )}
-
-          {/* ── STATS TAB ── */}
-          {tab === 'stats' && (
-            <div className="space-y-4">
-              {statsLoading ? (
-                <div className="flex justify-center py-8">
-                  <LoadingSpinner text="loading stats..." />
-                </div>
-              ) : stats ? (
-                <>
-                  {/* Summary row */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div
-                      className="p-3 bg-term-surface border border-term-border font-mono text-center"
-                      style={{ borderRadius: '2px' }}
-                    >
-                      <div className="text-2xl text-primary font-bold">{stats.totalViews}</div>
-                      <div className="text-xs text-term-muted mt-1">total views</div>
-                    </div>
-                    <div
-                      className="p-3 bg-term-surface border border-term-border font-mono text-center"
-                      style={{ borderRadius: '2px' }}
-                    >
-                      <div className="text-2xl text-primary font-bold">{stats.uniqueVisitors}</div>
-                      <div className="text-xs text-term-muted mt-1">unique visitors</div>
-                    </div>
-                  </div>
-
-                  {/* Device breakdown */}
-                  {stats.deviceBreakdown && stats.deviceBreakdown.length > 0 && (
-                    <div>
-                      <div className="text-xs font-mono text-term-muted mb-2">device breakdown</div>
-                      <div className="space-y-1">
-                        {stats.deviceBreakdown.map(({ device, count }) => {
-                          const pct = stats.totalViews > 0 ? Math.round((count / stats.totalViews) * 100) : 0;
-                          return (
-                            <div key={device} className="flex items-center space-x-2 font-mono text-xs">
-                              <span className="text-term-muted w-16">{device}</span>
-                              <div className="flex-1 bg-term-surface border border-term-border h-3" style={{ borderRadius: '2px' }}>
-                                <div
-                                  className="h-full bg-primary-dim"
-                                  style={{ width: `${pct}%`, borderRadius: '2px' }}
-                                />
-                              </div>
-                              <span className="text-term-subtle w-12 text-right">{count} ({pct}%)</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Views by day (last 7) */}
-                  {stats.viewsByDay && stats.viewsByDay.length > 0 && (
-                    <div>
-                      <div className="text-xs font-mono text-term-muted mb-2">views by day (last 30 days)</div>
-                      <div className="space-y-1 max-h-32 overflow-y-auto">
-                        {stats.viewsByDay.slice(-7).map((d) => (
-                          <div key={d.date} className="flex items-center justify-between font-mono text-xs">
-                            <span className="text-term-muted">{d.date}</span>
-                            <span className="text-term-subtle">{d.count} view{d.count !== 1 ? 's' : ''}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Recent views */}
-                  {stats.recentViews && stats.recentViews.length > 0 && (
-                    <div>
-                      <div className="text-xs font-mono text-term-muted mb-2">recent visits</div>
-                      <div className="space-y-1 max-h-32 overflow-y-auto">
-                        {stats.recentViews.map((v, i) => (
-                          <div key={i} className="flex items-center justify-between font-mono text-xs">
-                            <span className="text-term-subtle">
-                              {v.browser || 'unknown'}
-                              <span className="text-term-muted ml-1">· {v.deviceType || 'unknown'}</span>
-                            </span>
-                            <span className="text-term-muted">
-                              {new Date(v.viewedAt).toLocaleString('en-US', {
-                                month: 'short', day: 'numeric',
-                                hour: '2-digit', minute: '2-digit'
-                              })}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {stats.totalViews === 0 && (
-                    <div className="text-center py-6 font-mono text-xs text-term-muted">
-                      no views yet — share the link to start tracking
-                    </div>
-                  )}
-
-                  <button
-                    onClick={fetchStats}
-                    className="w-full btn-secondary text-xs"
-                  >
-                    ↻ refresh
-                  </button>
-                </>
-              ) : (
-                <div className="text-center py-6 font-mono text-xs text-term-muted">
-                  no stats available
-                </div>
-              )}
-            </div>
-          )}
         </TerminalCard>
       </div>
     </div>

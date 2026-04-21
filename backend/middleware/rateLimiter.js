@@ -14,16 +14,6 @@ const authLimiter = rateLimit({
   legacyHeaders: false
 });
 
-// General API: 100 requests per 15 minutes
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: isTest ? 10000 : 100,
-  skip: skipLocalhost,
-  message: { error: 'Too many requests from this IP, please try again after 15 minutes' },
-  standardHeaders: true,
-  legacyHeaders: false
-});
-
 // LLM: 20 requests per hour (cost control)
 const llmLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -44,4 +34,4 @@ const datacardLimiter = rateLimit({
   legacyHeaders: false
 });
 
-module.exports = { generalLimiter, authLimiter, llmLimiter, datacardLimiter };
+module.exports = { authLimiter, llmLimiter, datacardLimiter };

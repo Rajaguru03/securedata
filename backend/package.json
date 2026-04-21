@@ -42,12 +42,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.2.1",
     "multer": "^2.1.1",
-    "nodemailer": "^8.0.5",
-    "otplib": "^13.4.0",
     "pdf-parse": "^1.1.1",
-    "pdfkit": "^0.18.0",
-    "qrcode": "^1.5.4",
-    "uuid": "^13.0.0"
+    "pdfkit": "^0.18.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",

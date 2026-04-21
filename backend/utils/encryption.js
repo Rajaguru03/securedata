@@ -97,28 +97,4 @@ const decrypt = (encryptedText) => {
   }
 };
 
-/**
- * Generate a secure random encryption key
- * Use this to generate the ENCRYPTION_KEY for .env
- * @returns {string} - Random 32-byte key as hex string
- */
-const generateEncryptionKey = () => {
-  return crypto.randomBytes(32).toString('hex');
-};
-
-/**
- * Hash a value using SHA-256
- * Useful for creating searchable hashes of encrypted data
- * @param {string} value - Value to hash
- * @returns {string} - Hex encoded hash
- */
-const hash = (value) => {
-  return crypto.createHash('sha256').update(value).digest('hex');
-};
-
-module.exports = {
-  encrypt,
-  decrypt,
-  generateEncryptionKey,
-  hash
-};
+module.exports = { encrypt, decrypt };

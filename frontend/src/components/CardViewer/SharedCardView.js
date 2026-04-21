@@ -3,9 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { cardAPI } from '../../services/api';
 import LoadingSpinner from '../Common/LoadingSpinner';
 import TerminalCard from '../Common/TerminalCard';
-import {
-  HiLockClosed,
-} from 'react-icons/hi';
+import { HiLockClosed, HiX } from 'react-icons/hi';
 
 const SharedCardView = () => {
   const { token } = useParams();
@@ -18,6 +16,14 @@ const SharedCardView = () => {
   const [wrongPassword, setWrongPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fetched = useRef(false);
+  const [showPrivacyNotice, setShowPrivacyNotice] = useState(
+    () => !localStorage.getItem('sc_privacy_ack')
+  );
+
+  const dismissPrivacyNotice = () => {
+    localStorage.setItem('sc_privacy_ack', '1');
+    setShowPrivacyNotice(false);
+  };
 
   const loadCard = async (pw = null) => {
     try {
@@ -226,6 +232,25 @@ const SharedCardView = () => {
           → get started free
         </Link>
       </div>
+
+      {/* Privacy notice */}
+      {showPrivacyNotice && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-term-surface border-t border-term-border px-4 py-3">
+          <div className="max-w-2xl mx-auto flex items-start justify-between gap-4">
+            <p className="text-xs font-mono text-term-muted">
+              <span className="text-term-subtle">privacy notice:</span> this page records anonymous visit data
+              (approximate location, browser, device type) for the card owner's analytics. no personal data is stored.
+            </p>
+            <button
+              onClick={dismissPrivacyNotice}
+              className="shrink-0 text-term-muted hover:text-term-default transition-colors mt-0.5"
+              title="dismiss"
+            >
+              <HiX className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
