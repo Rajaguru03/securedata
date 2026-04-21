@@ -3,31 +3,26 @@ import { useParams, Link } from 'react-router-dom';
 import { cardAPI } from '../../services/api';
 import LoadingSpinner from '../Common/LoadingSpinner';
 import TerminalCard from '../Common/TerminalCard';
-import { HiLockClosed, HiX } from 'react-icons/hi';
+import { HiLockClosed, HiLocationMarker, HiClock, HiDesktopComputer, HiShieldExclamation } from 'react-icons/hi';
 
 const SharedCardView = () => {
   const { token } = useParams();
   const [card, setCard] = useState(null);
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [requiresPassword, setRequiresPassword] = useState(false);
   const [cardTitle, setCardTitle] = useState('');
   const [password, setPassword] = useState('');
   const [wrongPassword, setWrongPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // null = not decided, true = accepted, false = declined
+  const [consent, setConsent] = useState(null);
   const fetched = useRef(false);
-  const [showPrivacyNotice, setShowPrivacyNotice] = useState(
-    () => !localStorage.getItem('sc_privacy_ack')
-  );
 
-  const dismissPrivacyNotice = () => {
-    localStorage.setItem('sc_privacy_ack', '1');
-    setShowPrivacyNotice(false);
-  };
-
-  const loadCard = async (pw = null) => {
+  const loadCard = async (pw = null, trackingConsent = true) => {
+    setLoading(true);
     try {
-      const response = await cardAPI.getShared(token, pw);
+      const response = await cardAPI.getShared(token, pw, trackingConsent);
       setCard(response.data.data.datacard);
       setRequiresPassword(false);
     } catch (err) {
@@ -44,22 +39,105 @@ const SharedCardView = () => {
     }
   };
 
+  // Only load card if consent was accepted
   useEffect(() => {
-    if (!token || fetched.current) return;
+    if (consent !== true || fetched.current) return;
     fetched.current = true;
-    loadCard();
+    loadCard(null, true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [consent]);
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     if (!password.trim()) return;
     setSubmitting(true);
     setWrongPassword(false);
-    await loadCard(password.trim());
+    await loadCard(password.trim(), consent);
     setSubmitting(false);
   };
 
+  // Step 1 — Consent gate (shown before anything else)
+  if (consent === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-term-base px-4">
+        <div className="max-w-sm w-full">
+          <div className="text-center mb-6">
+            <Link to="/" className="inline-flex items-center font-mono text-lg">
+              <span className="text-term-muted">[</span>
+              <span className="text-primary">sc</span>
+              <span className="text-term-muted">]</span>
+              <span className="ml-2 text-term-subtle">securecard</span>
+            </Link>
+          </div>
+
+          <TerminalCard title="before you view this card">
+            <div className="flex justify-center mb-4">
+              <HiShieldExclamation className="w-10 h-10 text-warn" />
+            </div>
+
+            <p className="font-mono text-xs text-term-muted mb-4 text-center">
+              the owner of this card has enabled visit tracking. if you continue, the following will be collected and shown to them:
+            </p>
+
+            <div className="space-y-2 mb-5">
+              {[
+                { icon: HiLocationMarker, text: 'approximate location (country & city)' },
+                { icon: HiClock,          text: 'date, time & timezone of your visit' },
+                { icon: HiDesktopComputer, text: 'browser & device type' },
+              ].map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-3 p-2 border border-term-border font-mono text-xs" style={{ borderRadius: '2px' }}>
+                  <Icon className="w-4 h-4 text-warn shrink-0" />
+                  <span className="text-term-default">{text}</span>
+                </div>
+              ))}
+            </div>
+
+            <p className="font-mono text-xs text-term-muted mb-5 text-center">
+              if you decline, none of this data will be collected and you can still view the card.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConsent(false)}
+                className="flex-1 btn-secondary text-xs"
+              >
+                decline
+              </button>
+              <button
+                onClick={() => setConsent(true)}
+                className="flex-1 btn-primary text-xs"
+              >
+                accept & view
+              </button>
+            </div>
+          </TerminalCard>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 2 — Declined
+  if (consent === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-term-base px-4">
+        <div className="max-w-sm w-full text-center font-mono">
+          <HiShieldExclamation className="w-10 h-10 text-term-muted mx-auto mb-4" />
+          <h1 className="text-term-bright text-sm font-bold mb-2">access declined</h1>
+          <p className="text-term-muted text-xs mb-6">
+            you declined the data collection notice. this card cannot be viewed without accepting it.
+          </p>
+          <button
+            onClick={() => setConsent(null)}
+            className="btn-secondary text-xs"
+          >
+            ← go back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 3 — Loading
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-term-base">
@@ -68,6 +146,7 @@ const SharedCardView = () => {
     );
   }
 
+  // Step 4 — Error
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-term-base px-4">
@@ -83,6 +162,7 @@ const SharedCardView = () => {
     );
   }
 
+  // Step 5 — Password prompt (after consent)
   if (requiresPassword) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-term-base px-4">
@@ -134,10 +214,9 @@ const SharedCardView = () => {
     );
   }
 
-  if (!card) {
-    return null;
-  }
+  if (!card) return null;
 
+  // Step 6 — Card content
   return (
     <div className="min-h-screen bg-term-base py-8 px-4">
       {/* Header */}
@@ -154,16 +233,12 @@ const SharedCardView = () => {
       <div className="max-w-2xl mx-auto">
         <TerminalCard
           title={card.title}
-          tag={
-            <span className="text-xs font-mono text-term-muted">shared</span>
-          }
+          tag={<span className="text-xs font-mono text-term-muted">shared</span>}
         >
-          {/* Description */}
           {card.description && (
             <p className="text-term-muted font-mono text-sm mb-5">{card.description}</p>
           )}
 
-          {/* Fields */}
           <div className="mb-4">
             {card.fields?.map((field, index) => (
               <div key={index} className="kv-row">
@@ -175,22 +250,13 @@ const SharedCardView = () => {
                       <span className="text-warn">░░░░░░░░</span>
                     </span>
                   ) : field.type === 'url' && field.value ? (
-                    <a
-                      href={field.value}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-accent hover:underline"
-                    >
+                    <a href={field.value} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
                       {field.value}
                     </a>
                   ) : field.type === 'email' && field.value ? (
-                    <a href={`mailto:${field.value}`} className="text-accent hover:underline">
-                      {field.value}
-                    </a>
+                    <a href={`mailto:${field.value}`} className="text-accent hover:underline">{field.value}</a>
                   ) : field.type === 'phone' && field.value ? (
-                    <a href={`tel:${field.value}`} className="text-accent hover:underline">
-                      {field.value}
-                    </a>
+                    <a href={`tel:${field.value}`} className="text-accent hover:underline">{field.value}</a>
                   ) : (
                     field.value || <span className="text-term-muted">—</span>
                   )}
@@ -199,7 +265,6 @@ const SharedCardView = () => {
             ))}
           </div>
 
-          {/* Tags */}
           {card.tags?.length > 0 && (
             <div className="mt-4 pt-4 border-t border-term-border">
               <div className="flex flex-wrap gap-2">
@@ -217,7 +282,6 @@ const SharedCardView = () => {
           )}
         </TerminalCard>
 
-        {/* Footer note */}
         <div className="mt-4 text-center">
           <p className="text-xs text-term-muted font-mono">
             shared via securecard · some fields may be protected for privacy
@@ -232,25 +296,6 @@ const SharedCardView = () => {
           → get started free
         </Link>
       </div>
-
-      {/* Privacy notice */}
-      {showPrivacyNotice && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-term-surface border-t border-term-border px-4 py-3">
-          <div className="max-w-2xl mx-auto flex items-start justify-between gap-4">
-            <p className="text-xs font-mono text-term-muted">
-              <span className="text-term-subtle">privacy notice:</span> this page records anonymous visit data
-              (approximate location, browser, device type) for the card owner's analytics. no personal data is stored.
-            </p>
-            <button
-              onClick={dismissPrivacyNotice}
-              className="shrink-0 text-term-muted hover:text-term-default transition-colors mt-0.5"
-              title="dismiss"
-            >
-              <HiX className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

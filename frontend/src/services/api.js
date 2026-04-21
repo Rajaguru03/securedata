@@ -61,8 +61,11 @@ export const cardAPI = {
   delete: (id) => api.delete(`/cards/${id}`),
   generateShareLink: (id, data) => api.post(`/cards/${id}/share`, data),
   revokeShareLink: (id) => api.delete(`/cards/${id}/share`),
-  getShared: (token, password = null) => api.get(`/cards/shared/${token}`, {
-    headers: password ? { 'x-share-password': password } : {}
+  getShared: (token, password = null, consent = true) => api.get(`/cards/shared/${token}`, {
+    headers: {
+      ...(password ? { 'x-share-password': password } : {}),
+      'x-tracking-consent': String(consent),
+    }
   }),
   getShareStats: (id) => api.get(`/cards/${id}/share/stats`),
   exportPDF: (id, password) => api.post(`/cards/${id}/export`, { password }, { responseType: 'blob' }),

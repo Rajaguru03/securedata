@@ -490,41 +490,39 @@ const getSharedCard = async (req, res) => {
       }
     }
 
-    // Record this view (fire-and-forget — don't let tracking errors break the response)
-    // X-Forwarded-For is the real client IP when behind Render's load balancer.
-    // Take the first (leftmost) address — that's the original client.
-    const forwardedFor = req.headers['x-forwarded-for'];
-    const rawIp = (forwardedFor ? forwardedFor.split(',')[0].trim() : null)
-      || req.ip
-      || req.connection?.remoteAddress
-      || 'unknown';
-    const ua = req.headers['user-agent'] || 'unknown';
-    setImmediate(async () => {
-      try {
-        // Geo lookup — strips any IPv4-mapped IPv6 prefix (::ffff:) before lookup
-        const cleanIp = rawIp.replace(/^::ffff:/, '');
-        const geo = geoip.lookup(cleanIp);
-        console.log('[GEO-DEBUG] rawIp:', rawIp, '| cleanIp:', cleanIp, '| geo:', geo);
-
-        await ShareView.create({
-          cardId: datacard._id,
-          ipHash: ShareView.hashIp(rawIp),
-          userAgent: ua.substring(0, 500),
-          deviceType: ShareView.parseDeviceType(ua),
-          browser: ShareView.parseBrowser(ua),
-          referrer: (req.headers['referer'] || req.headers['referrer'] || '').substring(0, 500) || null,
-          country:  geo?.country  || null,
-          city:     geo?.city     || null,
-          timezone: geo?.timezone || null
-        });
-        await Datacard.updateOne(
-          { _id: datacard._id },
-          { $inc: { viewCount: 1 }, $set: { lastViewedAt: new Date() } }
-        );
-      } catch (err) {
-        console.error('Share view tracking error:', err.message);
-      }
-    });
+    // Only record visit if viewer gave tracking consent
+    const trackingConsent = req.headers['x-tracking-consent'];
+    if (trackingConsent === 'true') {
+      const forwardedFor = req.headers['x-forwarded-for'];
+      const rawIp = (forwardedFor ? forwardedFor.split(',')[0].trim() : null)
+        || req.ip
+        || req.connection?.remoteAddress
+        || 'unknown';
+      const ua = req.headers['user-agent'] || 'unknown';
+      setImmediate(async () => {
+        try {
+          const cleanIp = rawIp.replace(/^::ffff:/, '');
+          const geo = geoip.lookup(cleanIp);
+          await ShareView.create({
+            cardId: datacard._id,
+            ipHash: ShareView.hashIp(rawIp),
+            userAgent: ua.substring(0, 500),
+            deviceType: ShareView.parseDeviceType(ua),
+            browser: ShareView.parseBrowser(ua),
+            referrer: (req.headers['referer'] || req.headers['referrer'] || '').substring(0, 500) || null,
+            country:  geo?.country  || null,
+            city:     geo?.city     || null,
+            timezone: geo?.timezone || null
+          });
+          await Datacard.updateOne(
+            { _id: datacard._id },
+            { $inc: { viewCount: 1 }, $set: { lastViewedAt: new Date() } }
+          );
+        } catch (err) {
+          console.error('Share view tracking error:', err.message);
+        }
+      });
+    }
 
     logCardEvent('shared_view', req, { cardId: datacard._id });
 
