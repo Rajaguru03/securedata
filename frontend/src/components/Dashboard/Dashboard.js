@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useCards } from '../../context/CardContext';
 import { useAuth } from '../../context/AuthContext';
@@ -30,10 +30,20 @@ const Dashboard = () => {
   const { cards, loading, error, pagination, fetchCards, deleteCard } = useCards();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid');
+  const debounceRef = useRef(null);
 
   useEffect(() => {
     fetchCards();
   }, [fetchCards]);
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchCards(1, 10, value);
+    }, 350);
+  };
 
   const handleDelete = async (id) => {
     if (window.confirm('delete this card?')) {
@@ -47,16 +57,10 @@ const Dashboard = () => {
   };
 
   const handleRefresh = () => {
-    fetchCards();
+    setSearchTerm('');
+    fetchCards(1, 10, '');
     toast.success('cards refreshed');
   };
-
-  const filteredCards = cards.filter(
-    (card) =>
-      card.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      card.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      card.tags?.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
 
   const privateCount = cards.filter((c) => c.visibility === 'private').length;
   const publicCount = cards.filter((c) => c.visibility === 'public').length;
@@ -83,7 +87,7 @@ const Dashboard = () => {
             type="text"
             placeholder="search cards..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             className="input pl-8"
           />
         </div>
@@ -176,7 +180,7 @@ const Dashboard = () => {
       )}
 
       {/* Empty state */}
-      {!loading && filteredCards.length === 0 && (
+      {!loading && cards.length === 0 && (
         <div className="text-center py-12 font-mono">
           <div className="text-4xl text-term-border mb-4">[ ]</div>
           <h3 className="text-sm text-term-subtle mb-2">
@@ -196,7 +200,7 @@ const Dashboard = () => {
       )}
 
       {/* Cards grid/list */}
-      {!loading && filteredCards.length > 0 && (
+      {!loading && cards.length > 0 && (
         <>
           <Divider label="datacards" />
           <div
@@ -206,7 +210,7 @@ const Dashboard = () => {
                 : 'space-y-3'
             }
           >
-            {filteredCards.map((card) => (
+            {cards.map((card) => (
               <CardPreview
                 key={card._id}
                 card={card}
@@ -224,7 +228,7 @@ const Dashboard = () => {
           {Array.from({ length: pagination.pages }, (_, i) => i + 1).map((page) => (
             <button
               key={page}
-              onClick={() => fetchCards(page)}
+              onClick={() => fetchCards(page, 10, searchTerm)}
               className={`px-3 py-1.5 text-xs font-mono border transition-colors ${
                 pagination.current === page
                   ? 'border-primary text-primary bg-primary-muted'

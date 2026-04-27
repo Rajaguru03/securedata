@@ -563,31 +563,39 @@ const generateDatacard = async (prompt, referenceText = '', section = '') => {
         raw = await callOllamaRaw(ollamaSystemPrompt, userMessage, true);
       }
     } else {
-      try {
-        raw = await callOllamaRaw(ollamaSystemPrompt, userMessage, ragUsed);
-      } catch (ollamaErr) {
-        console.warn(`Ollama unavailable (${ollamaErr.message}) — trying Claude fallback`);
-        if (process.env.ANTHROPIC_API_KEY) {
+      // Plain mode: Claude first (better quality), Ollama fallback
+      if (process.env.ANTHROPIC_API_KEY) {
+        try {
+          usedModel = 'claude-haiku-4-5';
+          const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+          const res = await client.messages.create({
+            model: 'claude-haiku-4-5',
+            max_tokens: 2048,
+            temperature: 0.7,
+            system: claudeSystemPrompt,
+            messages: [{ role: 'user', content: userMessage }]
+          });
+          const block = res.content.find(b => b.type === 'text');
+          raw = (block?.text || '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        } catch (claudeErr) {
+          console.warn(`Claude unavailable (${claudeErr.message}) — falling back to Ollama`);
           try {
-            usedModel = 'claude-haiku-4-5';
-            const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-            const res = await client.messages.create({
-              model: 'claude-haiku-4-5',
-              max_tokens: 2048,
-              temperature: ragUsed ? 0 : 0.7,
-              system: claudeSystemPrompt,
-              messages: [{ role: 'user', content: userMessage }]
-            });
-            const block = res.content.find(b => b.type === 'text');
-            raw = (block?.text || '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-          } catch (claudeErr) {
-            console.warn(`Claude unavailable (${claudeErr.message}) — using mock`);
+            usedModel = OLLAMA_MODEL;
+            raw = await callOllamaRaw(ollamaSystemPrompt, userMessage, ragUsed);
+          } catch (ollamaErr) {
+            console.warn(`Ollama unavailable (${ollamaErr.message}) — using mock`);
             usedModel = 'mock';
             const card = generateMockDatacard(sanitizedPrompt);
             secureLog('generate', { promptLength: sanitizedPrompt.length, detectedPII, model: usedModel, outputValid: true, injectionCount });
             return { ...card, ragUsed };
           }
-        } else {
+        }
+      } else {
+        // No API key — try Ollama directly
+        try {
+          raw = await callOllamaRaw(ollamaSystemPrompt, userMessage, ragUsed);
+        } catch (ollamaErr) {
+          console.warn(`Ollama unavailable (${ollamaErr.message}) — using mock`);
           usedModel = 'mock';
           const card = generateMockDatacard(sanitizedPrompt);
           secureLog('generate', { promptLength: sanitizedPrompt.length, detectedPII, model: usedModel, outputValid: true, injectionCount });

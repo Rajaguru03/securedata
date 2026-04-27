@@ -68,12 +68,22 @@ const getCards = async (req, res) => {
     const limit = Math.min(Math.max(rawLimit, 1), 50); // clamp between 1 and 50
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
 
-    const datacards = await Datacard.find({ userId: req.user.id })
+    const query = { userId: req.user.id };
+    const search = req.query.search?.trim();
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { tags: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const datacards = await Datacard.find(query)
       .sort(sort)
       .limit(limit)
       .skip((page - 1) * limit);
 
-    const total = await Datacard.countDocuments({ userId: req.user.id });
+    const total = await Datacard.countDocuments(query);
 
     // Decrypt sensitive fields for display
     const decryptedCards = datacards.map(card => {

@@ -15,11 +15,13 @@ export const CardProvider = ({ children }) => {
   });
 
   // Fetch all cards
-  const fetchCards = useCallback(async (page = 1, limit = 10) => {
+  const fetchCards = useCallback(async (page = 1, limit = 10, search = '') => {
     try {
       setLoading(true);
       setError(null);
-      const response = await cardAPI.getAll({ page, limit });
+      const params = { page, limit };
+      if (search) params.search = search;
+      const response = await cardAPI.getAll(params);
       setCards(response.data.data.datacards);
       setPagination(response.data.data.pagination);
     } catch (err) {
