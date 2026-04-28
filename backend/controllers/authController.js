@@ -14,20 +14,22 @@ const REFRESH_COOKIE_OPTIONS = {
 /**
  * @desc    Register a new user
  * @route   POST /api/auth/register
- * @access  Public
+ * @access  is public
  */
+
+
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+// Checks for the existing user and report it as duplicate email
+    const existing_User = await User.findOne({ email });
+    if (existing_User) {
       logAuthEvent('register_duplicate', req);
       return res.status(400).json({
-        error: 'An account with this email already exists'
+        error: 'This Email id already exists'
       });
     }
-
+// Create users and password is hashed in the user model
     const user = await User.create({ name, email, password });
 
     const accessToken = generateToken(user._id);
@@ -36,7 +38,7 @@ const registerUser = async (req, res) => {
     await User.findByIdAndUpdate(user._id, { refreshToken: refreshHashed });
 
     logAuthEvent('register', req, { userId: user._id });
-
+// sets the raw token as cookie
     res.cookie('refreshToken', refreshRaw, REFRESH_COOKIE_OPTIONS);
     res.status(201).json({
       success: true,
@@ -68,7 +70,7 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Check account lock
+    // Checking for the account lock
     if (user.isLocked) {
       const remainingMs = user.lockUntil - new Date();
       const remainingMins = Math.ceil(remainingMs / 60000);
@@ -91,7 +93,7 @@ const loginUser = async (req, res) => {
       });
     }
 
-    // Successful login — reset lockout
+    // Successful login and reset lockout
     await user.resetLoginAttempts();
 
     const accessToken = generateToken(user._id);
@@ -135,7 +137,7 @@ const refreshAccessToken = async (req, res) => {
       return res.status(401).json({ error: 'Invalid or expired refresh token. Please log in again.' });
     }
 
-    // Rotate: issue new access token and new refresh token
+    // Rotates issue new access token and new refresh token
     const accessToken = generateToken(user._id);
     const { raw: refreshRaw, hashed: refreshHashed } = generateRefreshToken();
     await User.findByIdAndUpdate(user._id, { refreshToken: refreshHashed });
@@ -200,8 +202,8 @@ const updateUser = async (req, res) => {
     const { name, email } = req.body;
 
     if (email && email !== req.user.email) {
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
+      const existing_User = await User.findOne({ email });
+      if (existing_User) {
         return res.status(400).json({ error: 'Email already in use' });
       }
     }
