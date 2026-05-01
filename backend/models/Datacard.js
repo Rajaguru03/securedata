@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// Sub-schema for individual fields
+// Sub schema for individual fields
 const fieldSchema = new mongoose.Schema({
   label: {
     type: String,
@@ -84,13 +84,13 @@ const datacardSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  // Version tracking — incremented on every update; history stored in CardVersion collection
+  // Version tracking
   currentVersion: {
     type: Number,
     default: 1,
     min: 1
   },
-  // Share link view tracking (fast counters — full history in ShareView collection)
+  // Share link view tracking
   viewCount: {
     type: Number,
     default: 0,

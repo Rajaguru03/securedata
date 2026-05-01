@@ -4,7 +4,7 @@ const User = require('../models/User');
 const { logAuthEvent } = require('./auditLogger');
 
 /**
- * Authentication middleware
+ * Authentication for the middleware
  * Verifies JWT access token and attaches user to request
  */
 const protect = async (req, res, next) => {
@@ -52,7 +52,7 @@ const protect = async (req, res, next) => {
 };
 
 /**
- * Generate short-lived JWT access token (15 minutes)
+ * Generate short lived JWT access token (15 minutes)
  */
 const generateToken = (userId) => {
   return jwt.sign(
@@ -63,7 +63,7 @@ const generateToken = (userId) => {
 };
 
 /**
- * Generate a cryptographically random refresh token.
+ * Generating a cryptographically random refresh token.
  * Returns { raw, hashed } — store hashed, send raw to client.
  */
 const generateRefreshToken = () => {

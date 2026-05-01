@@ -6,7 +6,7 @@ const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
 
 /**
- * Get encryption key from environment
+ * Gets encryption key from environment
  * @returns {Buffer} 32-byte encryption key
  */
 const getEncryptionKey = () => {
@@ -78,7 +78,7 @@ const decrypt = (encryptedText) => {
 
     const [ivHex, authTagHex, encrypted] = parts;
 
-    // Convert hex strings back to buffers
+    // Converts hex strings back to buffers
     const iv = Buffer.from(ivHex, 'hex');
     const authTag = Buffer.from(authTagHex, 'hex');
 

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 /**
- * CardVersion — immutable snapshot of a Datacard at a point in time.
+ * CardVersion is immutable snapshot of a Datacard at a point in time.
  *
  * A new document is written here every time a card is updated (PUT /api/cards/:id).
  * Versions are numbered from 1 (original saved state) upward.
@@ -25,7 +25,7 @@ const cardVersionSchema = new mongoose.Schema({
     required: true,
     min: 1
   },
-  // --- Snapshot fields (mirrors Datacard schema) ---
+  // Snapshot fields
   title: {
     type: String,
     required: true,
@@ -42,7 +42,7 @@ const cardVersionSchema = new mongoose.Schema({
       value:     { type: String, maxlength: 1000, default: '' },
       type:      { type: String, default: 'text' },
       encrypted: { type: Boolean, default: false },
-      _id:       false   // no sub-document IDs in snapshots
+      _id:       false   // no sub document IDs in snapshots
     }
   ],
   template: {
@@ -56,7 +56,7 @@ const cardVersionSchema = new mongoose.Schema({
     default: 'private'
   },
   tags: [{ type: String, maxlength: 30 }],
-  // --- Provenance ---
+  // Provenance
   savedAt: {
     type: Date,
     default: Date.now,
@@ -68,7 +68,7 @@ const cardVersionSchema = new mongoose.Schema({
     default: ''
   }
 }, {
-  // No timestamps: savedAt serves as the single temporal anchor
+  // No timestamps savedAt serves as the single temporal anchor
   timestamps: false
 });
 

@@ -3,10 +3,10 @@ const User = require('../models/User');
 const { generateToken, generateRefreshToken } = require('../middleware/auth');
 const { logAuthEvent } = require('../middleware/auditLogger');
 
-// Refresh token cookie options
+// Refresh token cookie option
 const REFRESH_COOKIE_OPTIONS = {
-  httpOnly: true,       // Not accessible via JS
-  secure: process.env.NODE_ENV === 'production', // HTTPS only in prod
+  httpOnly: true,       // Not accessible through JS
+  secure: process.env.NODE_ENV === 'production', // HTTPS only in production
   sameSite: 'strict',
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
 };
@@ -21,18 +21,18 @@ const REFRESH_COOKIE_OPTIONS = {
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
-// Checks for the existing user and report it as duplicate email
-    const existing_User = await User.findOne({ email });
-    if (existing_User) {
+// Checks for the existing user and report it as the duplicate email
+    const existUser = await User.findOne({ email });
+    if (existUser) {
       logAuthEvent('register_duplicate', req);
       return res.status(400).json({
         error: 'This Email id already exists'
       });
     }
-// Create users and password is hashed in the user model
+// Creating the users and passwd is hashed in the user model
     const user = await User.create({ name, email, password });
 
-    const accessToken = generateToken(user._id);
+    const access_Token = generateToken(user._id);
     const { raw: refreshRaw, hashed: refreshHashed } = generateRefreshToken();
 
     await User.findByIdAndUpdate(user._id, { refreshToken: refreshHashed });
@@ -42,15 +42,15 @@ const registerUser = async (req, res) => {
     res.cookie('refreshToken', refreshRaw, REFRESH_COOKIE_OPTIONS);
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
+      message: 'Registration',
       data: {
         user: { id: user._id, name: user.name, email: user.email },
-        token: accessToken
+        token: access_Token
       }
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed. Please try again.' });
+    res.status(500).json({ error: 'Registration failed. Try again.' });
   }
 };
 
@@ -70,22 +70,22 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Checking for the account lock
+    // Checks for the account lock
     if (user.isLocked) {
       const remainingMs = user.lockUntil - new Date();
       const remainingMins = Math.ceil(remainingMs / 60000);
-      logAuthEvent('login_failure', req, { userId: user._id, reason: 'account_locked' });
+      logAuthEvent('login_failure', req, { userId: user._id, reason: 'Sorry Account Locked' });
       return res.status(423).json({
-        error: `Account locked due to too many failed attempts. Try again in ${remainingMins} minute${remainingMins !== 1 ? 's' : ''}.`
+        error: `Account locked due to many failed attempts. Try again in ${remainingMins} minute${remainingMins !== 1 ? 's' : ''}.`
       });
     }
 
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
+    const ifMatch = await user.comparePassword(password);
+    if (!ifMatch) {
       await user.incrementLoginAttempts();
       const attemptsAfter = user.loginAttempts + 1;
       const remaining = Math.max(0, 5 - attemptsAfter);
-      logAuthEvent('login_failure', req, { userId: user._id, reason: 'wrong_password', attempts: attemptsAfter });
+      logAuthEvent('login_failure', req, { userId: user._id, reason: 'Wrong Password', attempts: attemptsAfter });
       return res.status(401).json({
         error: remaining > 0
           ? `Invalid email or password. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining before lockout.`
@@ -96,11 +96,11 @@ const loginUser = async (req, res) => {
     // Successful login and reset lockout
     await user.resetLoginAttempts();
 
-    const accessToken = generateToken(user._id);
+    const access_Token = generateToken(user._id);
     const { raw: refreshRaw, hashed: refreshHashed } = generateRefreshToken();
     await User.findByIdAndUpdate(user._id, { refreshToken: refreshHashed });
 
-    logAuthEvent('login_success', req, { userId: user._id });
+    logAuthEvent('Login Success', req, { userId: user._id });
 
     res.cookie('refreshToken', refreshRaw, REFRESH_COOKIE_OPTIONS);
     res.status(200).json({
@@ -108,7 +108,7 @@ const loginUser = async (req, res) => {
       message: 'Login successful',
       data: {
         user: { id: user._id, name: user.name, email: user.email },
-        token: accessToken
+        token: access_Token
       }
     });
   } catch (error) {
@@ -126,19 +126,19 @@ const refreshAccessToken = async (req, res) => {
   try {
     const rawToken = req.cookies?.refreshToken;
     if (!rawToken) {
-      return res.status(401).json({ error: 'No refresh token provided.' });
+      return res.status(401).json({ error: 'There is no refresh token provided.' });
     }
 
     const hashed = crypto.createHash('sha256').update(rawToken).digest('hex');
     const user = await User.findOne({ refreshToken: hashed }).select('+refreshToken');
 
     if (!user) {
-      logAuthEvent('invalid_refresh_token', req, { reason: 'not_found' });
+      logAuthEvent('invalid refresh token', req, { reason: 'not found' });
       return res.status(401).json({ error: 'Invalid or expired refresh token. Please log in again.' });
     }
 
-    // Rotates issue new access token and new refresh token
-    const accessToken = generateToken(user._id);
+    // Rotating the issue new access token and new refresh token
+    const access_Token = generateToken(user._id);
     const { raw: refreshRaw, hashed: refreshHashed } = generateRefreshToken();
     await User.findByIdAndUpdate(user._id, { refreshToken: refreshHashed });
 
@@ -147,7 +147,7 @@ const refreshAccessToken = async (req, res) => {
     res.cookie('refreshToken', refreshRaw, REFRESH_COOKIE_OPTIONS);
     res.status(200).json({
       success: true,
-      data: { token: accessToken }
+      data: { token: access_Token }
     });
   } catch (error) {
     console.error('Refresh token error:', error);
@@ -202,9 +202,9 @@ const updateUser = async (req, res) => {
     const { name, email } = req.body;
 
     if (email && email !== req.user.email) {
-      const existing_User = await User.findOne({ email });
-      if (existing_User) {
-        return res.status(400).json({ error: 'Email already in use' });
+      const existUser = await User.findOne({ email });
+      if (existUser) {
+        return res.status(400).json({ error: 'This Email already in use' });
       }
     }
 
@@ -353,9 +353,9 @@ const deleteAccount = async (req, res) => {
     const user = await User.findById(req.user.id).select('+password');
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      logAuthEvent('delete_account_wrong_password', req, { userId: req.user.id });
+    const ifMatch = await user.comparePassword(password);
+    if (!ifMatch) {
+      logAuthEvent('deleteaccount_wrong_password', req, { userId: req.user.id });
       return res.status(401).json({ error: 'Incorrect password.' });
     }
 
@@ -363,10 +363,10 @@ const deleteAccount = async (req, res) => {
     const CardVersion = require('../models/CardVersion');
 
     // Find all cards belonging to this user
-    const cardIds = (await Datacard.find({ userId: req.user.id }).select('_id')).map(c => c._id);
+    const cardId = (await Datacard.find({ userId: req.user.id }).select('_id')).map(c => c._id);
 
     // Delete versions and cards
-    await CardVersion.deleteMany({ cardId: { $in: cardIds } });
+    await CardVersion.deleteMany({ cardId: { $in: cardId } });
     await Datacard.deleteMany({ userId: req.user.id });
 
     // Delete the user account
@@ -375,7 +375,7 @@ const deleteAccount = async (req, res) => {
     // Clear session cookie
     res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'strict' });
 
-    logAuthEvent('account_deleted', req, { userId: req.user.id, cardsDeleted: cardIds.length });
+    logAuthEvent('account_deleted', req, { userId: req.user.id, cardsDeleted: cardId.length });
 
     res.status(200).json({ success: true, message: 'Account and all associated data have been permanently deleted.' });
   } catch (error) {

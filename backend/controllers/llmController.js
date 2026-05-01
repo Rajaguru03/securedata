@@ -48,7 +48,7 @@ const generateContent = async (req, res) => {
 };
 
 /**
- * @desc    Get available templates/suggestions
+ * @desc    Geting the available templates/suggestions
  * @route   GET /api/generate/templates
  * @access  Private
  */
@@ -105,7 +105,7 @@ const extractDocument = async (req, res) => {
 
     const { buffer, mimetype, originalname, size } = req.file;
 
-    // Size guard (5 MB hard cap — multer also enforces this)
+    // Size guard (5 MB hard cap multer also enforces this)
     if (size > 5 * 1024 * 1024) {
       return res.status(400).json({ error: 'File too large. Maximum size is 5 MB.' });
     }

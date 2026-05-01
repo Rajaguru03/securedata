@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please provide a password'],
     minlength: [8, 'Password must be at least 8 characters'],
-    select: false // Don't return password in queries by default
+    select: false 
   },
   createdAt: {
     type: Date,
@@ -65,12 +65,12 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-// Hash password before saving
+// Hashing password before saving
 userSchema.pre('save', async function() {
   // Only hash if password is modified
   if (!this.isModified('password')) return;
 
-  // Generate salt and hash password
+  // Generates salt and hash password
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
 });
@@ -80,12 +80,12 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Check if account is currently locked
+// Checks if account is currently locked
 userSchema.virtual('isLocked').get(function() {
   return this.lockUntil && this.lockUntil > new Date();
 });
 
-// Increment failed login attempts; lock account if threshold reached
+// Increment failed login attempts  lock account if threshold reached
 userSchema.methods.incrementLoginAttempts = async function() {
   // If previous lock has expired, reset and start fresh
   if (this.lockUntil && this.lockUntil < new Date()) {

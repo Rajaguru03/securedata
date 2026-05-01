@@ -1,5 +1,5 @@
 /**
- * LLM Service — Secure pipeline for datacard generation
+ * LLM Service Secure pipeline for datacard generation
  *
  * Pipeline:
  *   Input → [1] PII Masking → [2] Prompt Guardrails → [3] LLM (gemma4:e2b via Ollama)
@@ -45,7 +45,7 @@ const maskPII = (text) => {
 };
 
 /**
- * Scan every field value in a generated card for PII the LLM may have hallucinated.
+ * Scans every field value in a generated card for PII the LLM may have hallucinated.
  * Masks in place and returns a summary of what was found (token types only, never raw values).
  */
 const scanOutputPII = (card) => {

@@ -8,7 +8,7 @@ const shareViewSchema = new mongoose.Schema({
     required: true,
     index: true
   },
-  // IP stored as a one-way SHA-256 hash — GDPR-friendly unique visitor counting
+  // IP stored as a one way SHA-256 hash GDPR-friendly unique visitor counting
   ipHash: {
     type: String,
     required: true
@@ -34,10 +34,10 @@ const shareViewSchema = new mongoose.Schema({
     maxlength: 500,
     default: null
   },
-  // Geolocation derived from IP at view time (offline lookup — no raw IP stored)
+  // Geolocation derived from IP at view time (offline lookup no raw IP stored)
   country: {
     type: String,
-    maxlength: 2,   // ISO 3166-1 alpha-2, e.g. "GB"
+    maxlength: 2,   
     default: null
   },
   city: {
@@ -47,7 +47,7 @@ const shareViewSchema = new mongoose.Schema({
   },
   timezone: {
     type: String,
-    maxlength: 60,  // e.g. "Europe/London"
+    maxlength: 60, 
     default: null
   },
   viewedAt: {
@@ -57,18 +57,18 @@ const shareViewSchema = new mongoose.Schema({
   }
 }, { versionKey: false });
 
-// Compound index for per-card analytics queries
+// Compound index for per card analytics queries
 shareViewSchema.index({ cardId: 1, viewedAt: -1 });
 
 /**
- * Hash an IP address so we can count unique visitors without storing raw IPs.
+ * Hashing an IP address so we can count unique visitors without storing raw IPs.
  */
 shareViewSchema.statics.hashIp = function (ip) {
   return crypto.createHash('sha256').update(ip || 'unknown').digest('hex');
 };
 
 /**
- * Infer the browser name from the User-Agent string.
+ * Infer the browser name from the User Agent string.
  */
 shareViewSchema.statics.parseBrowser = function (ua = '') {
   if (!ua || ua === 'unknown') return 'unknown';
@@ -86,7 +86,7 @@ shareViewSchema.statics.parseBrowser = function (ua = '') {
 };
 
 /**
- * Infer a coarse device category from the User-Agent string.
+ * Infer a coarse device category from the User Agent string.
  */
 shareViewSchema.statics.parseDeviceType = function (ua = '') {
   const s = ua.toLowerCase();

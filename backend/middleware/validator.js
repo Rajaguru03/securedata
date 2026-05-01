@@ -1,7 +1,7 @@
 const { body, param, validationResult } = require('express-validator');
 
 /**
- * Handle validation errors
+ * Handles validation errors
  */
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
@@ -18,7 +18,7 @@ const handleValidationErrors = (req, res, next) => {
 };
 
 /**
- * Validation rules for user registration
+ * Validates the rules for user registration
  */
 const registerValidation = [
   body('name')
@@ -43,7 +43,7 @@ const registerValidation = [
 ];
 
 /**
- * Validation rules for user login
+ * Validates the rules for user login
  */
 const loginValidation = [
   body('email')
@@ -59,7 +59,7 @@ const loginValidation = [
 ];
 
 /**
- * Validation rules for datacard creation/update
+ * Validates the rules for datacard creation/update
  */
 const datacardValidation = [
   body('title')
@@ -105,7 +105,7 @@ const datacardValidation = [
 ];
 
 /**
- * Validation for MongoDB ObjectId
+ * Validates for MongoDB ObjectId
  */
 const objectIdValidation = [
   param('id')
@@ -115,7 +115,7 @@ const objectIdValidation = [
 ];
 
 /**
- * Validation rules for profile update
+ * Validates the rules for profile update
  */
 const updateUserValidation = [
   body('name')
@@ -133,7 +133,7 @@ const updateUserValidation = [
 ];
 
 /**
- * Validation for LLM generation prompt
+ * Validates for LLM generation prompt
  */
 const llmPromptValidation = [
   body('prompt')

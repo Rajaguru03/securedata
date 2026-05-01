@@ -20,7 +20,7 @@ const { protect } = require('../middleware/auth');
 const { datacardValidation, objectIdValidation } = require('../middleware/validator');
 const { datacardLimiter } = require('../middleware/rateLimiter');
 
-// Public route for shared cards (no auth required)
+// Public route for shared cards
 router.get('/shared/:token', getSharedCard);
 
 // Protected routes (require authentication)
@@ -43,7 +43,7 @@ router.delete('/:id/share', objectIdValidation, revokeShareLink);
 router.get('/:id/share/stats', objectIdValidation, getShareStats);
 
 // Export formats
-router.post('/:id/export', objectIdValidation, exportCard);          // PDF (password-protected)
+router.post('/:id/export', objectIdValidation, exportCard);          // PDF (password protected)
 router.get('/:id/export/markdown', objectIdValidation, exportMarkdown); // Markdown
 router.get('/:id/export/json', objectIdValidation, exportJSON);          // JSON
 

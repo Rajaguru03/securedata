@@ -4,7 +4,7 @@
  * Extracts plain text from uploaded documents for RAG reference.
  * Supported formats: PDF (.pdf), plain text (.txt)
  *
- * All parsing happens in memory — no files are written to disk.
+ * All parsing happens in memory no files are written to disk.
  * The extracted text is returned to the caller and immediately discarded.
  *
  * Security hardening:
@@ -59,7 +59,7 @@ const validateFileContent = (buffer, mimetype, ext) => {
   }
 
   // Text / Markdown files
-  // 1. Null byte check — binary data disguised as text
+  // 1. Null byte check binary data disguised as text
   if (buffer.includes(0x00)) {
     throw new Error('File rejected: file contains null bytes and may not be a plain text file.');
   }

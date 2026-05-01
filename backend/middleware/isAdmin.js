@@ -1,7 +1,7 @@
 /**
  * isAdmin middleware
  * Must run AFTER `protect` (which sets req.user).
- * Rejects requests from non-admin users with 403.
+ * Rejects if the requests from non admin users with 403.
  */
 const isAdmin = (req, res, next) => {
   if (!req.user) {

@@ -3,7 +3,7 @@ const path  = require('path');
 const https = require('https');
 const http  = require('http');
 
-// Ensure logs directory exists
+// Ensures the logs directory exists
 const logsDir = path.join(__dirname, '..', 'logs');
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
@@ -16,7 +16,7 @@ let currentLogDate  = null;
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
 /**
- * Rotate audit.log if the calendar date has changed since the last write.
+ * Rotating the audit.log if the calendar date has changed since the last write.
  * Archives the old file as audit.YYYY-MM-DD.log and prunes files older than
  * ROTATION_DAYS days. Uses only built-in `fs` — no extra packages needed.
  */
@@ -51,8 +51,8 @@ const rotateIfNeeded = () => {
 };
 
 /**
- * Fire-and-forget: POST a redacted log entry to LOG_WEBHOOK_URL if configured.
- * Never blocks the caller; errors are swallowed with a console warning.
+ * Fire and forget: POST a redacted log entry to LOG_WEBHOOK_URL if configured.
+ * Never blocks the caller errors are swallowed with a console warning.
  */
 const forwardToWebhook = (payload) => {
   const webhookUrl = process.env.LOG_WEBHOOK_URL;
@@ -98,7 +98,7 @@ const redact = (obj, depth = 0) => {
 };
 
 /**
- * Write a structured audit log entry to file and console
+ * Writes a structured audit log entry to file and console
  */
 const writeLog = (entry) => {
   rotateIfNeeded();
@@ -112,7 +112,7 @@ const writeLog = (entry) => {
 };
 
 /**
- * Log authentication events
+ * Logs the authentication events
  * @param {'register'|'login_success'|'login_failure'|'invalid_token'|'token_expired'} event
  * @param {Object} req - Express request
  * @param {Object} [extra] - Additional fields (e.g. userId, reason)

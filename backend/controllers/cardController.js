@@ -17,8 +17,8 @@ const createCard = async (req, res) => {
   try {
     const { title, description, fields, template, visibility, tags } = req.body;
 
-    // Encrypt sensitive fields
-    const processedFields = fields?.map(field => {
+    // Encrypting the sensitive fields
+    const processed_Fields = fields?.map(field => {
       if (field.encrypted && field.value) {
         return {
           ...field,
@@ -32,7 +32,7 @@ const createCard = async (req, res) => {
       userId: req.user.id,
       title,
       description,
-      fields: processedFields,
+      fields: processed_Fields,
       template: template || 'default',
       visibility: visibility || 'private',
       tags: tags || []
@@ -85,7 +85,7 @@ const getCards = async (req, res) => {
 
     const total = await Datacard.countDocuments(query);
 
-    // Decrypt sensitive fields for display
+    // Decrypting the sensitive fields for display
     const decryptedCards = datacards.map(card => {
       const cardObj = card.toObject();
       cardObj.fields = cardObj.fields.map(field => {
@@ -135,7 +135,7 @@ const getCard = async (req, res) => {
       });
     }
 
-    // Check authorization
+    // Checking the authorization
     const isOwner = datacard.userId.toString() === req.user?.id;
     const isPublic = datacard.visibility === 'public';
 
@@ -146,7 +146,7 @@ const getCard = async (req, res) => {
       });
     }
 
-    // Decrypt sensitive fields only for owner
+    // Decrypting the sensitive fields only for owner
     const cardObj = datacard.toObject();
     if (isOwner) {
       cardObj.fields = cardObj.fields.map(field => {
@@ -196,7 +196,7 @@ const updateCard = async (req, res) => {
       });
     }
 
-    // Check ownership
+    // Checking for the ownership
     if (datacard.userId.toString() !== req.user.id) {
       logCardEvent('unauthorized', req, { action: 'update', ownerId: datacard.userId });
       return res.status(403).json({
@@ -206,10 +206,10 @@ const updateCard = async (req, res) => {
 
     const { title, description, fields, template, visibility, tags } = req.body;
 
-    // Encrypt sensitive fields
-    // Detect already-encrypted values by matching the iv:authTag:data hex format
+  
+    // Detects the already encrypted values by matching the iv:authTag:data hex format
     const ENCRYPTED_PATTERN = /^[0-9a-f]{32}:[0-9a-f]{32}:[0-9a-f]+$/i;
-    const processedFields = fields?.map(field => {
+    const processed_Fields = fields?.map(field => {
       if (field.encrypted && field.value && !ENCRYPTED_PATTERN.test(field.value)) {
         return {
           ...field,
@@ -219,7 +219,7 @@ const updateCard = async (req, res) => {
       return field;
     });
 
-    // --- Version History: snapshot current state before overwriting ---
+    // Version History - snapshot current state before overwriting
     const snapshotVersion = datacard.currentVersion || 1;
     await CardVersion.create({
       cardId:      datacard._id,
@@ -246,7 +246,7 @@ const updateCard = async (req, res) => {
       {
         title,
         description,
-        fields: processedFields,
+        fields: processed_Fields,
         template,
         visibility,
         tags,
@@ -271,7 +271,7 @@ const updateCard = async (req, res) => {
 };
 
 /**
- * @desc    Get version history list for a datacard (metadata only, no field values)
+ * @desc    Gets the version history list for a datacard (metadata only, no field values)
  * @route   GET /api/cards/:id/history
  * @access  Private (owner only)
  */
@@ -302,7 +302,7 @@ const getCardHistory = async (req, res) => {
 };
 
 /**
- * @desc    Get a specific version snapshot (with decrypted fields for owner)
+ * @desc    Gets a specific version snapshot (with decrypted fields for owner)
  * @route   GET /api/cards/:id/history/:version
  * @access  Private (owner only)
  */
@@ -326,7 +326,7 @@ const getCardVersion = async (req, res) => {
 
     if (!snapshot) return res.status(404).json({ error: 'Version not found' });
 
-    // Decrypt fields for the owner — same pattern as getCard
+    // Decrypting the fields for the owner — same pattern as getCard
     const snapshotObj = snapshot.toObject();
     snapshotObj.fields = snapshotObj.fields.map(field => {
       if (field.encrypted && field.value) {
@@ -350,7 +350,7 @@ const getCardVersion = async (req, res) => {
 };
 
 /**
- * @desc    Delete datacard
+ * @desc    To Delete the datacard
  * @route   DELETE /api/cards/:id
  * @access  Private (owner only)
  */
@@ -364,7 +364,7 @@ const deleteCard = async (req, res) => {
       });
     }
 
-    // Check ownership
+    // Checking for ownership
     if (datacard.userId.toString() !== req.user.id) {
       logCardEvent('unauthorized', req, { action: 'delete', ownerId: datacard.userId });
       return res.status(403).json({
@@ -388,7 +388,7 @@ const deleteCard = async (req, res) => {
 };
 
 /**
- * @desc    Generate share link for datacard
+ * @desc    Generates share link for datacard
  * @route   POST /api/cards/:id/share
  * @access  Private (owner only)
  */
@@ -409,10 +409,10 @@ const generateShareLink = async (req, res) => {
       });
     }
 
-    // Generate unique share token
+    // Generates unique share token
     const shareToken = crypto.randomBytes(32).toString('hex');
 
-    // Set expiry (0 = no expiry, otherwise clamped between 1 and 3650 days)
+    // Seting an expiry (0 = no expiry, otherwise clamped between 1 and 3650 days)
     const rawExpiry = parseInt(req.body.expiryDays, 10);
     const noExpiry = rawExpiry === 0;
     const expiryDays = noExpiry ? 0 : Math.min(Math.max(rawExpiry || 7, 1), 3650);
@@ -458,7 +458,7 @@ const generateShareLink = async (req, res) => {
 };
 
 /**
- * @desc    Get datacard by share token
+ * @desc    Gets the datacard by share token
  * @route   GET /api/cards/shared/:token
  * @access  Public
  */
@@ -473,14 +473,14 @@ const getSharedCard = async (req, res) => {
       });
     }
 
-    // Check if link has expired
+    // Checking if link has expired
     if (datacard.shareExpiry && new Date() > datacard.shareExpiry) {
       return res.status(410).json({
         error: 'Share link has expired'
       });
     }
 
-    // Password protection check
+    // Checking Password protection
     if (datacard.sharePasswordHash) {
       const submitted = req.headers['x-share-password'];
       if (!submitted) {
@@ -500,7 +500,7 @@ const getSharedCard = async (req, res) => {
       }
     }
 
-    // Only record visit if viewer gave tracking consent
+    // Only the record visit if viewer gave tracking consent
     const trackingConsent = req.headers['x-tracking-consent'];
     if (trackingConsent === 'true') {
       const forwardedFor = req.headers['x-forwarded-for'];
@@ -536,7 +536,7 @@ const getSharedCard = async (req, res) => {
 
     logCardEvent('shared_view', req, { cardId: datacard._id });
 
-    // Mask encrypted fields
+    // Masking the encrypted fields
     const cardObj = datacard.toObject();
     cardObj.fields = cardObj.fields.map(field => {
       if (field.encrypted) {
@@ -545,7 +545,7 @@ const getSharedCard = async (req, res) => {
       return field;
     });
 
-    // Remove sensitive info
+    // Removing the sensitive info
     delete cardObj.userId;
     delete cardObj.shareToken;
 
@@ -562,7 +562,7 @@ const getSharedCard = async (req, res) => {
 };
 
 /**
- * @desc    Get share link analytics for a datacard
+ * @desc    Gets a share link analytics for a datacard
  * @route   GET /api/cards/:id/share/stats
  * @access  Private (owner only)
  */
@@ -582,10 +582,10 @@ const getShareStats = async (req, res) => {
 
     const cardId = datacard._id;
 
-    // ── Total views (from ShareView records — source of truth) ────────────────
+    // Total views (from ShareView records)
     const totalViews = await ShareView.countDocuments({ cardId });
 
-    // ── Unique visitors (distinct ipHash) ────────────────────────────────────
+    // Unique visitors (distinct ipHash)
     const uniqueResult = await ShareView.aggregate([
       { $match: { cardId } },
       { $group: { _id: '$ipHash' } },
@@ -593,7 +593,7 @@ const getShareStats = async (req, res) => {
     ]);
     const uniqueVisitors = uniqueResult[0]?.count ?? 0;
 
-    // ── Views per day — last 30 days ──────────────────────────────────────────
+    // Views per day for last 30 days
     const since = new Date();
     since.setDate(since.getDate() - 30);
 
@@ -611,7 +611,7 @@ const getShareStats = async (req, res) => {
       { $project: { _id: 0, date: '$_id', count: 1 } }
     ]);
 
-    // ── Device breakdown ──────────────────────────────────────────────────────
+    //  Device breakdown 
     const deviceBreakdown = await ShareView.aggregate([
       { $match: { cardId } },
       { $group: { _id: '$deviceType', count: { $sum: 1 } } },
@@ -619,7 +619,7 @@ const getShareStats = async (req, res) => {
       { $sort: { count: -1 } }
     ]);
 
-    // ── Country breakdown ─────────────────────────────────────────────────────
+    //  Country breakdown 
     const countryBreakdown = await ShareView.aggregate([
       { $match: { cardId, country: { $ne: null } } },
       { $group: { _id: '$country', count: { $sum: 1 } } },
@@ -628,7 +628,7 @@ const getShareStats = async (req, res) => {
       { $limit: 20 }
     ]);
 
-    // ── City breakdown (top 10) ───────────────────────────────────────────────
+    //  City breakdown (top 10) 
     const cityBreakdown = await ShareView.aggregate([
       { $match: { cardId, city: { $ne: null }, city: { $ne: '' } } },
       { $group: { _id: { city: '$city', country: '$country' }, count: { $sum: 1 } } },
@@ -637,7 +637,7 @@ const getShareStats = async (req, res) => {
       { $limit: 10 }
     ]);
 
-    // ── Recent views (last 10, no raw IP) ────────────────────────────────────
+    //  Recent views (last 10, no raw IP) 
     const recentViews = await ShareView.find({ cardId })
       .sort({ viewedAt: -1 })
       .limit(10)
@@ -703,7 +703,7 @@ const revokeShareLink = async (req, res) => {
 };
 
 /**
- * @desc    Export datacard as a password-protected PDF
+ * @desc    Exporting datacard as a password protected PDF
  * @route   POST /api/cards/:id/export
  * @access  Private (owner only)
  */
@@ -725,7 +725,7 @@ const exportCard = async (req, res) => {
       return res.status(400).json({ error: 'Export password must be at least 4 characters' });
     }
 
-    // Decrypt fields for export
+    // Decrypting fields for export
     const fields = datacard.fields.map(field => {
       if (field.encrypted && field.value) {
         try {
@@ -739,7 +739,7 @@ const exportCard = async (req, res) => {
 
     logCardEvent('export', req, { cardId: datacard._id });
 
-    // Build PDF (optionally password-protected)
+    // Build PDF (optionally password protected)
     const pdfOptions = {
       size: 'A4',
       margins: { top: 60, bottom: 60, left: 60, right: 60 },
@@ -764,7 +764,7 @@ const exportCard = async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     doc.pipe(res);
 
-    // ── Header ────────────────────────────────────────────────────────────────
+    //  Header 
     doc.fontSize(9).fillColor('#6b7280').font('Helvetica')
       .text('[sc] securecard', { align: 'right' });
     doc.moveDown(0.5);
@@ -783,7 +783,7 @@ const exportCard = async (req, res) => {
     doc.moveTo(60, doc.y).lineTo(535, doc.y).strokeColor('#d1d5db').lineWidth(1).stroke();
     doc.moveDown(0.8);
 
-    // ── Fields ────────────────────────────────────────────────────────────────
+    //  Fields 
     fields.forEach(field => {
       const labelX = 60;
       const valueX = 210;
@@ -802,7 +802,7 @@ const exportCard = async (req, res) => {
       doc.moveDown(0.6);
     });
 
-    // ── Tags ──────────────────────────────────────────────────────────────────
+    //  Tags 
     if (datacard.tags?.length > 0) {
       doc.moveDown(0.3);
       doc.moveTo(60, doc.y).lineTo(535, doc.y).strokeColor('#d1d5db').lineWidth(1).stroke();
@@ -814,7 +814,7 @@ const exportCard = async (req, res) => {
       doc.moveDown(0.5);
     }
 
-    // ── Metadata ──────────────────────────────────────────────────────────────
+    //  Metadata 
     doc.moveDown(0.3);
     doc.moveTo(60, doc.y).lineTo(535, doc.y).strokeColor('#d1d5db').lineWidth(1).stroke();
     doc.moveDown(0.6);
@@ -822,9 +822,9 @@ const exportCard = async (req, res) => {
       .text(`Created: ${new Date(datacard.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}   |   Visibility: ${datacard.visibility}`);
     doc.moveDown(0.5);
 
-    // ── Security notice ───────────────────────────────────────────────────────
+    //  Security notice
     doc.fontSize(8).fillColor('#9ca3af')
-      .text('This document is password-protected. Field values marked [encrypted] were decrypted for this export. Handle with care.');
+      .text('This document is password protected. Field values marked [encrypted] were decrypted for this export. Handle with care.');
 
     doc.end();
   } catch (error) {
@@ -836,7 +836,7 @@ const exportCard = async (req, res) => {
 };
 
 /**
- * @desc    Export datacard as Markdown (GAP 4 — standard format export)
+ * @desc    Export datacard as Markdown (GAP 4 standard format export)
  * @route   GET /api/cards/:id/export/markdown
  * @access  Private (owner only)
  */
@@ -894,7 +894,7 @@ const exportMarkdown = async (req, res) => {
 };
 
 /**
- * @desc    Export datacard as JSON (GAP 4 — machine-readable standard format)
+ * @desc    Export datacard as JSON (GAP 4 — machine readable standard format)
  * @route   GET /api/cards/:id/export/json
  * @access  Private (owner only)
  */
