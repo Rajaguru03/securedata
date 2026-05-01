@@ -1,7 +1,7 @@
 #User Manual
 
 Overview:
-This guide provides instructions to use the Secure Data Card Management System. Details of how to contact the helpdesk can be found in the helpdesk section of the your page. The application is hosted at a URL provided to you by the project supervisor. Users need a newer browser from the following Google Chrome, Mozilla Firefox, or Microsoft Edge (each released in 2023 or newer). For standard use of the application, no installation is required on your part. Users who wish to run the application on their local sites should follow the local installation instructions provided on Appendix C.
+This guide provides instructions to use the Secure Data Card Management System. Details of how to contact the helpdesk can be found in the helpdesk section of the your page. The application is hosted at a URL provided to you by the project supervisor. Users need a newer browser from the following Google Chrome, Mozilla Firefox, or Microsoft Edge (each released in 2023 or newer). For standard use of the application, no installation is required on your part.
 
 Registration and Login:
 Go to the application URL. Click. Click "Register" from the home page. Type in a display name (between 2 and 50 characters), a working email, and a password. The password must be 8 characters long or more and contain a special character, at least 1 uppercase and at least 1 digit. Click on "Create User." A confirmation toast notification will appear. The user will be redirected to the dashboard once the notification is dismissed.
