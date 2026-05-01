@@ -5,8 +5,8 @@ A secure web application for creating personalized datacards with LLM-powered au
 ## MSc Cyber Security Project
 
 This project demonstrates secure web application development practices including:
-- JWT-based authentication
-- AES-256 field-level encryption
+- JWT based authentication
+- AES-256 field level encryption
 - Input validation and sanitization
 - Rate limiting and security headers
 - LLM integration with prompt injection defenses
@@ -36,7 +36,7 @@ secure-datacard-app/
 
 ### Backend Setup
 
-1. Navigate to backend directory:
+1. Go to backend directory:
    ```bash
    cd backend
    ```
@@ -66,7 +66,7 @@ secure-datacard-app/
 
 ### Frontend Setup
 
-1. Navigate to frontend directory:
+1. Go to frontend directory:
    ```bash
    cd frontend
    ```
